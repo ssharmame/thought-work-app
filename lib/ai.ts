@@ -1,8 +1,7 @@
 import OpenAI from "openai";
-const client = new OpenAI({apiKey:process.env.OPENAI_API_KEY})
-console.log("API KEY LOADED:", process.env.OPENAI_API_KEY?.slice(0,10));
-export async function processThought(thought: string) {
 
+export async function processThought(thought: string) {
+const client = new OpenAI({apiKey:process.env.OPENAI_API_KEY})
   const prompt = `
 You are a cognitive reflection assistant.
 
