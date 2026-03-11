@@ -3,275 +3,239 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
 
-export default function Home() {
+export default function Home(){
 
-  const [step,setStep] = useState(1)
-  const [thought,setThought] = useState("")
-  const [result,setResult] = useState<any>(null)
+const [thought,setThought] = useState("")
+const [analysis,setAnalysis] = useState<any>(null)
+const [loading,setLoading] = useState(false)
+const [hint,setHint] = useState("")
+const [entryCount,setEntryCount] = useState(1)
 
-  const processThought = async () => {
+const processThought = async () => {
 
-    if(!thought) return
+  const words = thought.trim().split(/\s+/)
 
-    setStep(2)
+  if(words.length < 6){
+    setHint("Try describing what happened and the thought your mind jumped to.")
+    return
+  }
+
+  try{
+
+    setHint("")
+    setLoading(true)
 
     const res = await fetch("/api/process-thought",{
       method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
+      headers:{ "Content-Type":"application/json"},
       body:JSON.stringify({thought})
     })
 
     const data = await res.json()
 
-    setResult(data)
+    setLoading(false)
 
-    setTimeout(()=>{
-      setStep(3)
-    },1200)
+    if(!data.valid){
+      setHint(data.message || "We couldn't understand that clearly.")
+      return
+    }
+
+    setAnalysis(data)
+
+  }catch(e){
+
+    console.error(e)
+    setLoading(false)
+    setHint("Something went wrong. Please try again.")
+
   }
 
-  return (
-
-    <main style={styles.page}>
-
-      <div style={styles.container}>
-
-        <h1 style={styles.title}>Thought Reflection</h1>
-
-        <p style={styles.subtitle}>
-          Separate facts from stories and create a balanced thought.
-        </p>
-
-        {step === 1 && (
-
-          <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-
-            <textarea
-              placeholder="Write the thought that is troubling you..."
-              value={thought}
-              onChange={(e)=>setThought(e.target.value)}
-              style={styles.textarea}
-            />
-
-            <button style={styles.button} onClick={processThought}>
-              Analyze Thought
-            </button>
-
-          </motion.div>
-
-        )}
-
-        {step === 2 && (
-
-          <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-
-            <h3 style={styles.processingTitle}>
-              Analyzing your thought...
-            </h3>
-
-            <Processing />
-
-          </motion.div>
-
-        )}
-
-        {step === 3 && result && (
-
-          <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-
-            <Card title="Fact" text={result.fact}/>
-            <Card title="Story" text={result.story}/>
-            <Card title="Emotion" text={result.emotion}/>
-
-            <button style={styles.button} onClick={()=>setStep(4)}>
-              Continue Reflection
-            </button>
-
-          </motion.div>
-
-        )}
-
-        {step === 4 && result && (
-
-          <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-
-            <Card title="Reflection Question" text={result.reflectionQuestion}/>
-
-            <button style={styles.button} onClick={()=>setStep(5)}>
-              See Balanced Thought
-            </button>
-
-          </motion.div>
-
-        )}
-
-        {step === 5 && result && (
-
-          <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-
-            <Card title="Balanced Thought" text={result.balancedThought}/>
-
-            <button
-              style={styles.secondaryButton}
-              onClick={()=>{
-                setStep(1)
-                setThought("")
-                setResult(null)
-              }}
-            >
-              Start New Thought
-            </button>
-
-          </motion.div>
-
-        )}
-
-      </div>
-
-    </main>
-
-  )
 }
 
-function Processing(){
+const resetThought = () => {
 
-  const steps = [
-    "Identifying facts",
-    "Separating interpretation",
-    "Detecting emotion",
-    "Creating balanced thought"
-  ]
+  setThought("")
+  setAnalysis(null)
+  setHint("")
+  setEntryCount(entryCount + 1)
 
-  return (
-
-    <div style={{marginTop:20}}>
-
-      {steps.map((s,i)=>(
-        <motion.div
-          key={i}
-          initial={{opacity:0,y:10}}
-          animate={{opacity:1,y:0}}
-          transition={{delay:i*0.4}}
-          style={styles.processingStep}
-        >
-          ✓ {s}
-        </motion.div>
-      ))}
-
-    </div>
-
-  )
 }
 
-function Card({title,text}:{title:string,text:string}){
+return(
 
-  return(
+<main className="min-h-screen bg-slate-50 flex justify-center px-6 py-20">
 
-    <div style={styles.card}>
+<div className="max-w-2xl w-full">
 
-      <h3 style={styles.cardTitle}>{title}</h3>
+<h1 className="text-4xl font-semibold text-slate-900 mb-4">
+Is your mind overthinking a situation?
+</h1>
 
-      <p style={styles.cardText}>{text}</p>
+<p className="text-lg text-slate-600 mb-10 leading-relaxed">
+Write the thought that's on your mind.
+We'll help you see it from a clearer perspective.
+</p>
 
-    </div>
+{/* INPUT */}
 
-  )
+{!analysis && !loading && (
+
+<div className="space-y-4">
+
+<textarea
+value={thought}
+onChange={(e)=>setThought(e.target.value)}
+placeholder="My manager didn’t reply to my message, and now I feel like they might be unhappy with me."
+className={`w-full h-36 border rounded-xl p-5 text-lg focus:outline-none focus:ring-2 focus:ring-slate-400 ${hint ? "border-amber-300" : ""}`}
+/>
+
+{hint && (
+
+<div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800">
+{hint}
+</div>
+
+)}
+
+<button
+onClick={processThought}
+className="w-full bg-slate-800 text-white py-4 rounded-xl text-lg hover:bg-slate-700 transition"
+>
+Analyze my thought
+</button>
+
+</div>
+
+)}
+
+{/* LOADING */}
+
+{loading && (
+
+<div className="bg-white border rounded-xl p-10 text-center">
+
+<div className="flex justify-center space-x-2 mb-4">
+
+<span className="w-3 h-3 bg-slate-400 rounded-full animate-bounce"/>
+<span className="w-3 h-3 bg-slate-400 rounded-full animate-bounce delay-150"/>
+<span className="w-3 h-3 bg-slate-400 rounded-full animate-bounce delay-300"/>
+
+</div>
+
+<p className="text-slate-600">
+Analyzing your thought...
+</p>
+
+</div>
+
+)}
+
+{/* RESULTS */}
+
+{analysis && (
+
+<div className="space-y-5">
+
+<Card title="Your thought" text={thought} bg="bg-slate-100"/>
+
+<Card title="What happened" text={analysis.situation} bg="bg-blue-50"/>
+
+<Card title="What your mind concluded" text={analysis.story} bg="bg-amber-50"/>
+
+<Card title="How this might be making you feel" text={analysis.emotion} bg="bg-purple-50"/>
+
+<div className="bg-rose-50 border rounded-xl p-6">
+
+<h3 className="text-lg font-semibold mb-2">
+What your mind might be doing
+</h3>
+
+<span className="inline-block bg-rose-200 text-rose-800 px-3 py-1 rounded-full text-sm font-medium mb-2">
+{analysis.pattern}
+</span>
+
+<p className="text-slate-700">
+{analysis.patternExplanation}
+</p>
+
+</div>
+
+<Card
+title="A more balanced way to look at this"
+text={analysis.balancedThought}
+bg="bg-green-50"
+/>
+
+{/* PATTERN DISCOVERY SECTION */}
+
+<div className="bg-white border rounded-xl p-6">
+
+<h3 className="text-lg font-semibold mb-2">
+Your mind may have recurring thinking patterns
+</h3>
+
+<p className="text-slate-600 mb-4">
+Add a few more thoughts and we'll start identifying them.
+</p>
+
+<p className="text-sm text-slate-500 mb-2">
+Thought discovery progress
+</p>
+
+<p className="font-medium mb-4">
+Entry {entryCount} of 5
+</p>
+
+<div className="w-full bg-slate-200 rounded-full h-2 mb-4">
+
+<div
+className="bg-slate-800 h-2 rounded-full"
+style={{width: `${(entryCount/5)*100}%`}}
+/>
+
+</div>
+
+<button
+onClick={resetThought}
+className="w-full border py-3 rounded-xl hover:bg-slate-50"
+>
+Add another thought
+</button>
+
+</div>
+
+</div>
+
+)}
+
+</div>
+
+</main>
+
+)
+
 }
 
-const styles:any = {
+function Card({title,text,bg}:any){
 
-  page:{
-    minHeight:"100vh",
-    background:"#f7f8fb",
-    display:"flex",
-    alignItems:"center",
-    justifyContent:"center"
-  },
+return(
 
-  container:{
-    width:"100%",
-    maxWidth:640,
-    background:"white",
-    padding:"40px",
-    borderRadius:12,
-    boxShadow:"0 10px 30px rgba(0,0,0,0.05)"
-  },
+<motion.div
+initial={{opacity:0,y:10}}
+animate={{opacity:1,y:0}}
+className={`${bg} border rounded-xl p-6`}
+>
 
-  title:{
-    fontSize:32,
-    fontWeight:600,
-    marginBottom:8
-  },
+<h3 className="font-semibold mb-2">
+{title}
+</h3>
 
-  subtitle:{
-    color:"#666",
-    marginBottom:30,
-    fontSize:16
-  },
+<p className="text-slate-700 leading-relaxed whitespace-pre-line">
+{text}
+</p>
 
-  textarea:{
-    width:"100%",
-    minHeight:120,
-    padding:16,
-    borderRadius:8,
-    border:"1px solid #ddd",
-    fontSize:16,
-    outline:"none"
-  },
+</motion.div>
 
-  button:{
-    marginTop:20,
-    width:"100%",
-    padding:"14px",
-    borderRadius:8,
-    border:"none",
-    background:"#4f46e5",
-    color:"white",
-    fontSize:16,
-    fontWeight:500,
-    cursor:"pointer"
-  },
-
-  secondaryButton:{
-    marginTop:20,
-    width:"100%",
-    padding:"14px",
-    borderRadius:8,
-    border:"1px solid #ddd",
-    background:"white",
-    fontSize:16,
-    cursor:"pointer"
-  },
-
-  card:{
-    padding:20,
-    borderRadius:10,
-    background:"#f9fafc",
-    marginBottom:16
-  },
-
-  cardTitle:{
-    fontSize:18,
-    marginBottom:8,
-    fontWeight:600
-  },
-
-  cardText:{
-    fontSize:16,
-    lineHeight:1.6
-  },
-
-  processingTitle:{
-    fontSize:18,
-    marginTop:10
-  },
-
-  processingStep:{
-    marginTop:10,
-    fontSize:16,
-    color:"#444"
-  }
+)
 
 }
