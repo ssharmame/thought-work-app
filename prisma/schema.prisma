@@ -6,15 +6,67 @@ datasource db {
   provider = "postgresql"
 }
 
+model Visitor {
+  id        String    @id @default(uuid())
+  firstSeen DateTime  @default(now())
+  sessions  Session[]
+  threads   Thread[]
+  thoughts  ThoughtEntry[]
+}
+
+model Session {
+  id        String       @id @default(uuid())
+  visitorId String
+  visitor   Visitor      @relation(fields: [visitorId], references: [id])
+  threads   Thread[]
+  thoughts  ThoughtEntry[]
+  createdAt DateTime     @default(now())
+}
+
+model Thread {
+  id        String        @id @default(uuid())
+  sessionId String
+  visitorId String
+  title     String?
+  session   Session       @relation(fields: [sessionId], references: [id])
+  visitor   Visitor       @relation(fields: [visitorId], references: [id])
+  thoughts  ThoughtEntry[]
+  insight   ThreadInsight?
+  createdAt DateTime      @default(now())
+}
+
 model ThoughtEntry {
-  id                 String   @id @default(uuid())
+  id                 String    @id @default(uuid())
+  threadId           String?
+  sessionId          String?
+  visitorId          String?
   thought            String
+  situation          String?
+  automaticThought   String?
   fact               String
   story              String
   emotion            String
+  coreBelief         String?
   reflectionQuestion String
   balancedThought    String
-  createdAt          DateTime @default(now())
+  pattern            String?
+  patternExplanation String?
+  createdAt          DateTime  @default(now())
+
+  thread   Thread?   @relation(fields: [threadId], references: [id])
+  session  Session?  @relation(fields: [sessionId], references: [id])
+  visitor  Visitor?  @relation(fields: [visitorId], references: [id])
 
   @@index([createdAt])
+}
+
+model ThreadInsight {
+  id              String   @id @default(uuid())
+  threadId        String   @unique
+  dominantPattern String?
+  dominantEmotion String?
+  dominantBelief  String?
+  thoughtCount    Int      @default(0)
+  thread          Thread   @relation(fields: [threadId], references: [id])
+  updatedAt       DateTime @updatedAt
 }
