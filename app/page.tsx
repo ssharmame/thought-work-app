@@ -73,7 +73,7 @@ function Navbar() {
     <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-border">
       <nav className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
         <span className="font-display text-xl font-semibold text-foreground tracking-tight">
-          ClarityMind
+          ThoughtLens.ai
         </span>
 
         <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
@@ -166,7 +166,7 @@ function Hero() {
         <FadeUp delay={0.2}>
           <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-lg mx-auto leading-relaxed mb-11 text-balance">
             Most people can&apos;t tell the difference between a fact and a
-            story their mind creates. ClarityMind helps you see the difference.
+            story their mind creates. ThoughtLens.ai helps you see the difference.
           </p>
         </FadeUp>
 
@@ -460,7 +460,7 @@ function ProductSection() {
             clarity tool.
           </h2>
           <p className="text-lg lg:text-xl text-muted-foreground max-w-xl leading-relaxed mb-14">
-            Write a thought. ClarityMind breaks it into its components so you
+            Write a thought. ThoughtLens.ai breaks it into its components so you
             can finally see what&apos;s happening inside your mind.
           </p>
         </FadeUp>
@@ -498,7 +498,7 @@ function ProductSection() {
 
         <FadeUp>
           <p className="text-muted-foreground text-base lg:text-lg leading-relaxed">
-            Over time, ClarityMind detects your{" "}
+            Over time, ThoughtLens.ai detects your{" "}
             <strong className="text-foreground">recurring triggers</strong>,{" "}
             <strong className="text-foreground">thinking patterns</strong>, and
             possible <strong className="text-foreground">core beliefs</strong>.
@@ -567,7 +567,7 @@ function HowItWorksSection() {
             </span>
           </h2>
           <p className="text-lg lg:text-xl text-muted-foreground max-w-xl leading-relaxed mb-14">
-            Write any thought. ClarityMind walks you through a structured
+            Write any thought. ThoughtLens.ai walks you through a structured
             analysis inspired by Cognitive Behavioral Therapy.
           </p>
         </FadeUp>
@@ -706,7 +706,7 @@ function HowItWorksSection() {
                 className="text-xs font-medium"
                 style={{ color: "oklch(0.40 0.10 152)" }}
               >
-                Analyzed with ClarityMind · CBT-inspired framework
+                Analyzed with ThoughtLens.ai · CBT-inspired framework
               </p>
             </div>
           </div>
@@ -771,7 +771,7 @@ function DifferentSection() {
             </div>
           </FadeUp>
 
-          {/* ClarityMind */}
+        {/* ThoughtLens.ai */}
           <FadeUp delay={0.1}>
             <div
               className="rounded-2xl p-8 border h-full"
@@ -792,7 +792,7 @@ function DifferentSection() {
                     style={{ color: "oklch(0.46 0.12 152)" }}
                   />
                 </div>
-                <h3 className="font-semibold text-foreground">ClarityMind</h3>
+          <h3 className="font-semibold text-foreground">ThoughtLens.ai</h3>
               </div>
               <ul className="space-y-3.5">
                 {[
@@ -900,7 +900,7 @@ function VisionSection() {
                 profile.
               </h2>
               <p className="text-base lg:text-lg text-muted-foreground leading-relaxed">
-                ClarityMind is evolving into a full cognitive insight platform.
+                ThoughtLens.ai is evolving into a full cognitive insight platform.
                 Over time, it builds a deep understanding of how your unique
                 mind works — your patterns, triggers, and the beliefs that shape
                 your experience.
@@ -991,10 +991,10 @@ function Footer() {
     <footer className="border-t border-border bg-background">
       <div className="max-w-5xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
         <span className="font-display text-lg font-semibold text-foreground">
-          ClarityMind
+          ThoughtLens.ai
         </span>
         <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4 text-sm text-muted-foreground">
-          <span>&copy; {year} ClarityMind</span>
+          <span>&copy; {year} ThoughtLens.ai</span>
           <span className="hidden sm:inline opacity-30">&middot;</span>
          
         </div>
