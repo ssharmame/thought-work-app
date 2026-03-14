@@ -15,7 +15,7 @@ export default function ThoughtTimeline({ situation, thoughts = [] }: Props) {
     <div className="mb-6 space-y-4">
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
         <p className="mb-2 text-sm font-semibold tracking-wide text-emerald-700">
-          Situation we're exploring
+          Situation we&apos;re exploring
         </p>
         <p className="text-base font-semibold leading-relaxed text-emerald-950">
           {situation}

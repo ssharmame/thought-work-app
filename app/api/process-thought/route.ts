@@ -40,10 +40,6 @@ import {
 } from "@/services/reflectionValidator.service"
 import {
   factStoryStageSchema,
-  recognitionStageSchema,
-  patternStageSchema,
-  balancedStageSchema,
-  nextThoughtStageSchema,
 } from "@/schemas/thoughtStage.schema"
 
 import { mergeAnalysisStages } from "@/services/analysis.service"

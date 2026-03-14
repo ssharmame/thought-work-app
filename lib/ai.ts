@@ -880,7 +880,6 @@ export async function generateNextThoughtStage(
   const situation = context.situation.trim() || "I described an unfolding situation."
   const interpretation =
     context.interpretation.trim() || "A discouraging interpretation of the situation."
-  const emotion = context.emotion.trim() || "anxiety"
   const pattern = context.pattern?.trim() || "not identified"
   const previousPatterns = context.previousPatterns ?? []
   const historyLength = context.historyLength ?? previousPatterns.length

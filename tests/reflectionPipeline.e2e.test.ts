@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { NextThoughtStage } from "../services/reflectionValidator.service"
 
-const threadStore = new Map<string, { situation: string | null; thoughts: any[] }>()
+type StoredThought = {
+  situation?: string | null
+  story?: string | null
+  thought?: string | null
+  automaticThought?: string | null
+  pattern?: string | null
+}
+
+const threadStore = new Map<string, { situation: string | null; thoughts: StoredThought[] }>()
 
 vi.mock("../services/thought.service", () => ({
   fetchThreadContext: async (threadId: string) => {
@@ -72,7 +80,7 @@ let buildThoughtStages: typeof import("../services/cbt/stagePipeline.service").b
 let fetchThreadContext: (threadId: string) => Promise<{
   situation: string | null
   story: string | null
-  thoughts: any[]
+  thoughts: StoredThought[]
 }>
 
 beforeEach(async () => {
