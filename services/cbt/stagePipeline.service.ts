@@ -92,10 +92,9 @@ export async function buildThoughtStages(
     emotion: factStory.emotions[0] ?? "",
   }
 
-  const recognition = recognitionStageSchema.parse({
-    stage: "recognition",
-    ...await generateRecognitionStage(recognitionContext),
-  })
+  const recognition = recognitionStageSchema.parse(
+    await generateRecognitionStage(recognitionContext),
+  )
 
   const baseContext: ThoughtContext = {
     situation: factStory.situation,
@@ -103,20 +102,18 @@ export async function buildThoughtStages(
     emotion: factStory.emotions[0] ?? "",
   }
 
-  const pattern = patternStageSchema.parse({
-    stage: "pattern",
-    ...await generatePatternStage(baseContext),
-  })
+  const pattern = patternStageSchema.parse(
+    await generatePatternStage(baseContext),
+  )
 
   const contextWithPattern: ThoughtContext = {
     ...baseContext,
     pattern: pattern.pattern,
   }
 
-  const balanced = balancedStageSchema.parse({
-    stage: "balanced",
-    ...await generateBalancedStage(contextWithPattern),
-  })
+  const balanced = balancedStageSchema.parse(
+    await generateBalancedStage(contextWithPattern),
+  )
 
   const completionDecision = await generateReflectionCompletion({
     situation: factStory.situation,
@@ -149,10 +146,7 @@ export async function buildThoughtStages(
     contextWithBalance
   )
 
-  const nextThought = nextThoughtStageSchema.parse({
-    stage: "next_thought",
-    ...nextThoughtCandidate,
-  })
+  const nextThought = nextThoughtStageSchema.parse(nextThoughtCandidate)
 
   return [factStory, recognition, pattern, balanced, nextThought]
 }

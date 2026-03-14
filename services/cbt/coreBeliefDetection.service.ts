@@ -27,7 +27,7 @@ export async function detectCoreBeliefForThought(
   }
 
   try {
-    return await detectCoreBelief(automaticThought)
+    return { coreBelief: await detectCoreBelief(automaticThought) }
   } catch (error) {
     console.error("core belief detection AI failed", error)
     return { coreBelief: null }

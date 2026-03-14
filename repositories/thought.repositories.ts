@@ -48,7 +48,7 @@ export async function setThreadSituation(threadId: string, situation: string) {
   })
 }
 
-export async function createThoughtEntry(data: Prisma.ThoughtEntryCreateInput) {
+export async function createThoughtEntry(data: Prisma.ThoughtEntryUncheckedCreateInput) {
   return prisma.thoughtEntry.create({ data })
 }
 
@@ -62,7 +62,7 @@ export function buildThoughtEntryData(
     visitorId: string
   },
   analysis: ThoughtEntryFields,
-): Prisma.ThoughtEntryCreateInput {
+): Prisma.ThoughtEntryUncheckedCreateInput {
   return {
     thought: base.thought,
     intent: base.intent,
