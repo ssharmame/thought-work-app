@@ -12,6 +12,7 @@ import {
   type RecognitionContext,
   type ThoughtContext,
 } from "@/lib/ai"
+import { randomUUID } from "crypto"
 
 import { detectSelfHarm } from "@/services/safety.service"
 import { handleClassification } from "@/services/decision.service"
