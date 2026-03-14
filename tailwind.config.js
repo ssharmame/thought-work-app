@@ -3,7 +3,7 @@ import containerQueries from "@tailwindcss/container-queries";
 import animate from "tailwindcss-animate";
 
 /** @type {import('tailwindcss').Config} */
-export default {
+const tailwindConfig = {
   darkMode: ["class"],
 
   content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
@@ -130,3 +130,5 @@ export default {
 
   plugins: [typography, containerQueries, animate],
 };
+
+export default tailwindConfig;

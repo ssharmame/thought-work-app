@@ -28,6 +28,7 @@ model Thread {
   sessionId String
   visitorId String
   title     String?
+  situation String?
   session   Session       @relation(fields: [sessionId], references: [id])
   visitor   Visitor       @relation(fields: [visitorId], references: [id])
   thoughts  ThoughtEntry[]
@@ -41,9 +42,10 @@ model ThoughtEntry {
   sessionId          String?
   visitorId          String?
   thought            String
+  intent             String   @default("THOUGHT")
+  status             String   @default("REFLECTION_COMPLETE")
   situation          String?
   automaticThought   String?
-  fact               String
   story              String
   emotion            String
   coreBelief         String?
@@ -51,6 +53,7 @@ model ThoughtEntry {
   balancedThought    String
   pattern            String?
   patternExplanation String?
+  normalization      String?
   createdAt          DateTime  @default(now())
 
   thread   Thread?   @relation(fields: [threadId], references: [id])

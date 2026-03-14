@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import type { Prisma } from "@prisma/client"
+import type { ThoughtEntryFields } from "@/services/thoughtMapper"
+export type { ThoughtEntryFields } from "@/services/thoughtMapper"
 
 export async function upsertVisitor(visitorId: string) {
   return prisma.visitor.upsert({
@@ -33,10 +35,52 @@ export async function upsertThread(threadId: string, sessionId: string, visitorI
   })
 }
 
-export async function createThoughtEntry(
-  data: Prisma.ThoughtEntryCreateInput
-) {
+export async function getThreadById(threadId: string) {
+  return prisma.thread.findUnique({
+    where: { id: threadId }
+  })
+}
+
+export async function setThreadSituation(threadId: string, situation: string) {
+  return prisma.thread.update({
+    where: { id: threadId },
+    data: { situation }
+  })
+}
+
+export async function createThoughtEntry(data: Prisma.ThoughtEntryCreateInput) {
   return prisma.thoughtEntry.create({ data })
+}
+
+export function buildThoughtEntryData(
+  base: {
+    thought: string
+    intent: string
+    status: string
+    threadId: string
+    sessionId: string
+    visitorId: string
+  },
+  analysis: ThoughtEntryFields,
+): Prisma.ThoughtEntryCreateInput {
+  return {
+    thought: base.thought,
+    intent: base.intent,
+    status: base.status,
+    threadId: base.threadId,
+    sessionId: base.sessionId,
+    visitorId: base.visitorId,
+    situation: analysis.situation,
+    automaticThought: analysis.automaticThought,
+    story: analysis.story,
+    emotion: analysis.emotion,
+    coreBelief: analysis.coreBelief,
+    reflectionQuestion: analysis.reflectionQuestion,
+    balancedThought: analysis.balancedThought,
+    pattern: analysis.pattern,
+    patternExplanation: analysis.patternExplanation,
+    normalization: analysis.normalization ?? undefined,
+  }
 }
 
 export async function getThoughts() {

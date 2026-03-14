@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
 
 // ── Fade-up animation helper ────────────────────────────────────────────────
 const fadeUp = {
@@ -62,11 +61,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 // ── Navbar ───────────────────────────────────────────────────────────────────
 function Navbar() {
-  const [_menuOpen, setMenuOpen] = useState(false);
-
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-    setMenuOpen(false);
   };
 
   return (
@@ -251,7 +247,7 @@ function Hero() {
                       Your thought
                     </p>
                     <p className="text-foreground text-sm leading-snug font-medium mt-0.5">
-                      &ldquo;My career might be over.&rdquo;
+                      &ldquo;My manager said &lsquo;let&rsquo;s talk tomorrow&rsquo;. I feel like I&rsquo;m about to be fired.&rdquo;
                     </p>
                   </div>
                 </div>
@@ -262,25 +258,25 @@ function Hero() {
                 {[
                   {
                     label: "Fact",
-                    value: "No offer yet",
+                    value: "Manager scheduled a meeting tomorrow",
                     bg: "oklch(0.93 0.025 220 / 0.7)",
                     dot: "oklch(0.55 0.10 220)",
                   },
                   {
                     label: "Story",
-                    value: "Career is over",
+                    value: "I might be getting fired",
                     bg: "oklch(0.93 0.05 30 / 0.5)",
                     dot: "oklch(0.58 0.14 30)",
                   },
                   {
                     label: "Emotion",
-                    value: "Fear, hopelessness",
+                    value: "Anxiety",
                     bg: "oklch(0.93 0.05 30 / 0.5)",
                     dot: "oklch(0.58 0.14 30)",
                   },
                   {
                     label: "Pattern",
-                    value: "Catastrophizing",
+                    value: "Fortune telling",
                     bg: "oklch(0.92 0.04 150 / 0.6)",
                     dot: "oklch(0.46 0.12 152)",
                   },
@@ -309,28 +305,6 @@ function Hero() {
                 ))}
               </div>
 
-              {/* Balanced thought callout */}
-              <div
-                className="mx-7 mb-6 rounded-xl px-4 py-3.5"
-                style={{
-                  background: "oklch(0.46 0.12 152 / 0.10)",
-                  border: "1px solid oklch(0.46 0.12 152 / 0.25)",
-                }}
-              >
-                <p
-                  className="text-[10px] font-bold uppercase tracking-wider mb-1"
-                  style={{ color: "oklch(0.40 0.10 152)" }}
-                >
-                  Balanced Thought
-                </p>
-                <p
-                  className="text-xs leading-relaxed"
-                  style={{ color: "oklch(0.30 0.08 180)" }}
-                >
-                  The process is taking time — that doesn&apos;t mean it&apos;s
-                  over.
-                </p>
-              </div>
             </div>
           </div>
         </FadeUp>
@@ -516,8 +490,8 @@ const analysisPhases = [
     phaseColor: "oklch(0.50 0.10 220)",
     phaseBg: "oklch(0.93 0.03 220 / 0.5)",
     rows: [
-      { label: "Situation", value: "Waiting for job offer response" },
-      { label: "Fact", value: "No offer received in several months" },
+      { label: "Situation", value: "Manager scheduled a meeting for tomorrow" },
+      { label: "Fact", value: "No reason for the meeting was given" },
     ],
   },
   {
@@ -525,9 +499,13 @@ const analysisPhases = [
     phaseColor: "oklch(0.52 0.15 30)",
     phaseBg: "oklch(0.92 0.06 30 / 0.35)",
     rows: [
-      { label: "Story", value: "My career is over" },
-      { label: "Emotion", value: "Fear, hopelessness" },
-      { label: "Thinking Pattern", value: "Catastrophizing" },
+      { label: "Story", value: "Something bad might happen" },
+      {
+        label: "Automatic thought",
+        value: "I might be getting fired",
+      },
+      { label: "Emotion", value: "Anxiety, dread" },
+      { label: "Thinking Pattern", value: "Fortune telling" },
     ],
   },
   {
@@ -537,11 +515,11 @@ const analysisPhases = [
     rows: [
       {
         label: "Reflection",
-        value: "Is it possible that the timeline is just longer than expected?",
+        value: "Is it possible the meeting is about something routine?",
       },
       {
         label: "Balanced Thought",
-        value: "The process is taking time, but that doesn't mean it's over.",
+        value: "A meeting request doesn't mean something bad will happen.",
         isHero: true,
       },
     ],
@@ -610,8 +588,7 @@ function HowItWorksSection() {
                     Your thought
                   </p>
                   <p className="text-foreground text-[15px] lg:text-base leading-relaxed font-medium">
-                    &ldquo;I haven&apos;t received an offer in months. My career
-                    might be over.&rdquo;
+                    &ldquo;My manager said &lsquo;let&rsquo;s talk tomorrow&rsquo;. I feel like I&apos;m about to be fired.&rdquo;
                   </p>
                 </div>
               </div>
