@@ -1007,7 +1007,7 @@ Return JSON:
 
   const stage = await runPrompt<NextThoughtStage>(prompt)
   const filtered = (stage.suggestions ?? []).filter(
-    (suggestion) => !isInvalidSuggestionText(suggestion, situation)
+    (suggestion) => !isInvalidSuggestionText(suggestion)
   )
 
   return {
