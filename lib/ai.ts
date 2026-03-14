@@ -39,11 +39,16 @@ async function runPrompt<T>(prompt: string): Promise<T> {
 
   let text = ""
 
-  if (typeof message.content === "string") {
-    text = message.content
-  } else if (Array.isArray(message.content)) {
-    text = message.content
-      .map((part: { text?: string }) => part.text || "")
+  const content = message.content as unknown
+  if (typeof content === "string") {
+    text = content
+  } else if (Array.isArray(content)) {
+    text = content
+      .map((part) => {
+        if (!part || typeof part !== "object") return ""
+        const maybeText = (part as { text?: unknown }).text
+        return typeof maybeText === "string" ? maybeText : ""
+      })
       .join("")
   }
 
