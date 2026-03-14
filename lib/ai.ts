@@ -402,6 +402,63 @@ STORY (automatic thought)
 • The interpretation my mind made about the situation.
 • This must contain ONLY the belief or assumption.
 • Remove any description of the event itself.
+• The "story" must represent the interpretation or belief, not just the emotion.
+• Incorrect story: "I am worried."
+• Correct story: "I might fail the exam."
+
+Important rule:
+The "situation" field must NEVER be empty.
+
+If the user only expresses a thought, worry, or feeling without describing the event,
+infer the most likely real-world situation that would produce that thought.
+
+The situation should still represent something that could realistically happen in the world.
+
+Examples:
+
+Example 1
+Thought:
+"I am worried about my exam result."
+
+Return:
+{
+"stage": "fact_story",
+"situation": "I am waiting for my exam result.",
+"story": "I might not do well on the exam.",
+"emotions": ["worried"]
+}
+
+Example 2
+Thought:
+"Maybe they didn't like my answers."
+
+Return:
+{
+"stage": "fact_story",
+"situation": "I recently completed an interview.",
+"story": "Maybe they didn't like my answers.",
+"emotions": ["anxious"]
+}
+
+Example 3
+Thought:
+"I think my manager is upset with me."
+
+Return:
+{
+"stage": "fact_story",
+"situation": "My manager gave me feedback earlier today.",
+"story": "My manager might be upset with me.",
+"emotions": ["anxious"]
+}
+
+EMOTION RULE
+• Emotions must be single-word labels such as:
+anxious
+worried
+sad
+disappointed
+embarrassed
 
 Example:
 
@@ -430,6 +487,8 @@ Return ONLY JSON.
   "story": "",
   "emotions": []
 }
+
+The situation field must never be empty.
 `
 
   const factStory = await runPrompt<FactStoryStage>(prompt)
