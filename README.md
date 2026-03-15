@@ -1,326 +1,211 @@
-# ThoughtLens.ai - CBT Thought Reflection Engine
+# ThoughtLens.ai
 
-ThoughtLens.ai is a Next.js + TypeScript application that helps a user reflect on anxious or self-critical thoughts using a structured Cognitive Behavioral Therapy (CBT) pipeline.
+ThoughtLens.ai is a Next.js + TypeScript app for structured CBT-style thought reflection.
 
-The product separates:
-- what happened (`situation`)
-- what the mind made it mean (`story`)
-- emotional and cognitive patterns
-- a balanced perspective
-- possible next automatic thoughts
+It helps users break one thought into:
+- situation (what happened)
+- story (what the mind concluded)
+- emotion
+- thinking pattern
+- clearer perspective
+- possible next thought directions
 
-The core architecture is built around multi-pass reflection on the **same situation**.
+## What the app currently includes
 
-## Table of Contents
-- [What This App Does](#what-this-app-does)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [End-to-End Request Flow](#end-to-end-request-flow)
-- [AI Pipeline Stages](#ai-pipeline-stages)
-- [Thread and Situation Persistence](#thread-and-situation-persistence)
-- [API Contract](#api-contract)
-- [Database Model](#database-model)
-- [Validation and Safety](#validation-and-safety)
-- [Suggestion Logic and Stop Conditions](#suggestion-logic-and-stop-conditions)
-- [Thread Insight Aggregation](#thread-insight-aggregation)
-- [Setup and Local Development](#setup-and-local-development)
-- [Testing](#testing)
-- [Debugging Guide](#debugging-guide)
-- [Common Failure Modes and Fixes](#common-failure-modes-and-fixes)
-- [Production Notes](#production-notes)
+- Marketing pages:
+  - `/` (`app/page.tsx`)
+  - `/tool` (`app/tool/page.tsx`)
+- Core API:
+  - `POST /api/process-thought` (`app/api/process-thought/route.ts`)
+- AI stage engine:
+  - `lib/ai.ts`
+- Persistence:
+  - Prisma + PostgreSQL (`prisma/schema.prisma`)
+- Thread insights:
+  - dominant pattern/emotion/belief per thread
+- Test suites:
+  - `tests/thoughtPipeline.test.ts`
+  - `tests/reflectionPipeline.test.ts`
+  - `tests/reflectionPipeline.e2e.test.ts`
 
-## What This App Does
-The app is designed for reflective thought processing, not advice-giving.
+## Tech stack
 
-Given a user thought such as:
+- Next.js 16 (App Router)
+- React 19 + TypeScript
+- Prisma 7 + PostgreSQL
+- OpenAI SDK (`openai`)
+- Tailwind CSS + Framer Motion
+- Vitest
 
-> "It has been 3 days since my interviews and I have not heard back. I think I was not selected."
+## Reflection pipeline (current behavior)
 
-the system returns:
-- `situation`: a factual event statement
-- `story`: interpretation/conclusion
-- `emotion`: inferred or AI-generated feeling
-- `pattern`: cognitive distortion label
-- `balancedThought`: realistic reframing
-- `suggestions`: possible next automatic thoughts (when applicable)
-- `threadInsights`: dominant pattern/emotion over the thread
+For each thought, the API builds this analysis flow:
 
-## Tech Stack
-- **Framework**: Next.js (App Router)
-- **Language**: TypeScript
-- **AI**: OpenAI Chat Completions (`gpt-4o-mini`)
-- **Database**: PostgreSQL (via Prisma)
-- **ORM**: Prisma Client
-- **Testing**: Vitest
-- **UI**: React + Tailwind + Framer Motion
+1. `classifyInput`  
+2. `fact_story` via `generateFactStoryStage`  
+3. `story_emotion` via `generateStoryEmotionStage`  
+4. `recognition`  
+5. `pattern`  
+6. `balanced`  
+7. `next_thought`
 
-## Project Structure
-Key paths:
+### Important thread model
 
-- `app/api/process-thought/route.ts`: main API endpoint and orchestrator used by the tool
-- `lib/ai.ts`: AI prompts, stage generators, rule-based overrides, suggestion validation
-- `services/thought.service.ts`: thread/session/visitor and thought persistence helpers
-- `repositories/thought.repositories.ts`: Prisma data access layer
-- `services/threadInsight.service.ts`: dominant pattern/emotion/belief aggregation
-- `services/reflectionValidator.service.ts`: stage-level validation + fallback strategy
-- `services/analysis.service.ts`: normalized merged output shape returned to UI
-- `services/cbt/stagePipeline.service.ts`: reusable stage pipeline builder (also used in tests)
-- `schemas/thoughtStage.schema.ts`: Zod schemas for stage payloads
-- `prisma/schema.prisma`: DB schema
-- `tests/*.test.ts`: pipeline behavior tests
+- Thread lifecycle is explicit:
+  - no `threadId` in request -> backend creates new thread id
+  - `threadId` provided -> backend appends to that thread
+- The thread situation is persisted and reused.
+- Story is treated as the current interpretation for that pass.
 
-## End-to-End Request Flow
-Main endpoint: `POST /api/process-thought`
+## API contract
 
-High-level flow in `app/api/process-thought/route.ts`:
+### Endpoint
 
-1. Validate payload (`thought`, `visitorId`, `sessionId`, `threadId` required).
-2. Run self-harm detection.
-3. Run lightweight input validation.
-4. Run AI classification (`THOUGHT`, `SOLUTION_SEEKING`, etc.).
-5. Convert classification to decision (`continue`, `guidance`, `safety`).
-6. Load thread context and detect situation drift.
-7. Ensure thread/session/visitor records exist (`ensureThreadContext`).
-8. Ensure situation exists (extract only on first pass/new thread).
-9. Generate/validate stages: fact_story -> recognition -> pattern -> balanced -> next_thought.
-10. Apply distortion progression filtering to suggestions.
-11. Merge stages into final `analysis` response.
-12. Persist thought entry.
-13. Recompute and persist thread insight.
-14. Return stage payloads + merged analysis + thread insight.
+`POST /api/process-thought`
 
-## AI Pipeline Stages
-Pipeline outputs are represented using `schemas/thoughtStage.schema.ts` and `services/reflectionValidator.service.ts` types.
-
-### 1) Input Classification
-Function: `classifyInput` in `lib/ai.ts`
-
-Classifies incoming text into:
-- `THOUGHT`
-- `SELF_HARM_RISK`
-- `SOLUTION_SEEKING`
-- `SITUATION`
-- `EMOTIONAL_EXPRESSION`
-- `GENERAL_QUESTION`
-
-### 2) Situation Extraction
-Function: `extractSituation`
-
-Extracts objective event-only context from thought text.
-
-### 3) Fact/Story Stage
-Function: `generateFactStoryStage`
-
-Returns:
-- `situation`: factual context
-- `story`: interpretation only
-- `emotions`: 1-3 short labels
-
-Post-processing strips story/situation duplication and keeps interpretation-focused output.
-
-### 4) Story+Emotion for Later Passes
-Function: `generateStoryEmotionStage`
-
-Used when a thread already has a situation. It should not regenerate or reinterpret the situation, only restate current interpretation + emotions.
-
-### 5) Pattern Stage
-Function: `generatePatternStage`
-
-AI selects distortion label, then rule-based overrides (`detectPatternFromText`) can replace/strengthen model output.
-
-### 6) Balanced Stage
-Function: `generateBalancedStage`
-
-Generates a grounded, situation-aware balanced thought.
-
-### 7) Next Thought Stage
-Function: `generateNextThoughtStage`
-
-Generates possible next automatic thoughts, bounded by allowed distortions and thread context.
-
-Also includes stop checks (loop stabilization, insight/core-belief detection).
-
-### 8) Reflection Completion Check
-Function: `generateReflectionCompletion`
-
-AI returns `continue` or `complete` based on situation/story/pattern/history.
-
-## Thread and Situation Persistence
-The core stability invariant:
-
-> A thread keeps one `situation`; each new pass only updates `story`/`emotion`/`pattern` around that same situation.
-
-Persistence behavior:
-- `Thread.situation` is the primary source.
-- If `Thread.situation` is missing, `fetchThreadContext` can recover it from historic thought entries that have a `situation` value.
-- Situation extraction should only happen at thread start (or after drift reset).
-
-This prevents pass 2+ from turning a thought into "what happened".
-
-## API Contract
-Endpoint: `POST /api/process-thought`
-
-Request body:
+### Request body
 
 ```json
 {
-  "thought": "...",
-  "visitorId": "...",
-  "sessionId": "...",
-  "threadId": "...",
+  "thought": "I might not hear back from the interview",
+  "visitorId": "uuid",
+  "sessionId": "uuid",
+  "threadId": "uuid-optional",
   "threadTitle": "optional"
 }
 ```
 
-Success response contains:
-- `status: "success"`
-- `valid: true`
-- `analysis` (merged normalized payload)
-- `stages` (`factStory`, `recognition`, `pattern`, `balanced`, `nextThought`)
-- `threadInsights`
-- `threadReset` (boolean)
-- `threadId` (may be new if drift reset)
+### Success response (shape)
 
-Guidance/safety response shape:
-- `status: "guidance" | "safety"`
-- `valid: false`
-- `message`
-
-## Database Model
-Defined in `prisma/schema.prisma`.
-
-Main entities:
-- `Visitor`
-- `Session`
-- `Thread` (`situation` stored here)
-- `ThoughtEntry` (per-pass analysis fields)
-- `ThreadInsight` (aggregated dominance metrics)
-
-Important fields:
-- `Thread.situation` -> canonical thread event
-- `ThoughtEntry.story`, `emotion`, `pattern`, `balancedThought`
-- `ThoughtEntry.situation` -> also persisted per entry for audit/history
-
-## Validation and Safety
-Safety and validation layers:
-- `services/safety.service.ts`: explicit self-harm phrase detection
-- `services/validation.service.ts` + `lib/simpleValidation.ts`: basic input quality checks
-- `services/reflectionValidator.service.ts`: retries invalid AI stage outputs and uses fallback payloads
-
-## Suggestion Logic and Stop Conditions
-Suggestion generation is constrained by:
-- same-situation context block in prompts
-- distortion progression map (`getAllowedDistortions`)
-- explicit "no reassurance / no advice" rules
-
-Suggestion suppression conditions:
-- repeated/stabilized patterns
-- detected user insight (`detectInsight`)
-- detected core belief (`detectCoreBelief`)
-- reflection completion stage
-
-## Thread Insight Aggregation
-`services/threadInsight.service.ts` computes:
-- dominant pattern
-- dominant emotion
-- dominant belief
-- thought count
-
-and upserts this into `ThreadInsight` on each pass.
-
-## Setup and Local Development
-### Prerequisites
-- Node.js 18+
-- PostgreSQL database
-- OpenAI API key
-
-### Environment variables
-Create `.env.local` (or `.env`) with:
-
-```bash
-OPENAI_API_KEY=your_openai_key
-DATABASE_URL=your_postgres_connection_string
+```json
+{
+  "status": "success",
+  "valid": true,
+  "type": "analysis",
+  "context": [],
+  "analysis": {},
+  "stages": {
+    "factStory": {},
+    "recognition": {},
+    "pattern": {},
+    "balanced": {},
+    "nextThought": {}
+  },
+  "threadInsights": {},
+  "threadReset": false,
+  "threadId": "uuid"
+}
 ```
 
-### Install dependencies
+### Non-success responses
+
+- guidance response:
+  - `status: "guidance"`
+  - `valid: false`
+  - `message`
+- safety response:
+  - `status: "safety"`
+  - `valid: false`
+  - `message`
+
+## Data model overview
+
+Defined in `prisma/schema.prisma`.
+
+Main models:
+- `Visitor`
+- `Session`
+- `Thread` (includes `situation`)
+- `ThoughtEntry` (stores per-pass analysis fields)
+- `ThreadInsight` (aggregate stats)
+
+## Key files
+
+- `app/api/process-thought/route.ts`  
+  Request orchestration, stage execution, persistence, response merge.
+
+- `lib/ai.ts`  
+  Prompt templates, stage generators, pattern maps, fallback helpers.
+
+- `services/reflectionValidator.service.ts`  
+  Stage validation + fallback objects.
+
+- `services/analysis.service.ts`  
+  Merges stage outputs into stable `analysis` object for UI.
+
+- `services/thought.service.ts` / `repositories/thought.repositories.ts`  
+  Thread/thought persistence and retrieval.
+
+- `services/threadInsight.service.ts`  
+  Updates dominant pattern/emotion/belief.
+
+## Local development
+
+### 1) Install
+
 ```bash
 npm install
 ```
 
-### Prisma setup
+### 2) Configure env
+
+Create `.env.local` (or `.env`):
+
+```bash
+OPENAI_API_KEY=your_openai_api_key
+DATABASE_URL=your_postgres_url
+```
+
+### 3) Prisma
+
 ```bash
 npx prisma generate
 npx prisma migrate dev
 ```
 
-If you are syncing an existing DB and just need schema alignment:
+If your DB already exists and you only need schema sync:
 
 ```bash
 npx prisma db push
 ```
 
-### Run app
+### 4) Run app
+
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open:
+- `http://localhost:3000`
+- `http://localhost:3000/tool`
 
-## Testing
-Run all tests:
+## Build, lint, test
+
+```bash
+npm run lint
+npm run build
+```
+
+Run tests:
 
 ```bash
 npx vitest
 ```
 
-Run focused suites:
+## Deployment notes
 
-```bash
-npx vitest run tests/reflectionPipeline.test.ts
-npx vitest run tests/reflectionPipeline.e2e.test.ts
-npx vitest run tests/thoughtPipeline.test.ts
-```
+- Railway logs like `INFO No package manager inferred, using npm default` are informational.
+- Ensure deployment env has:
+  - `OPENAI_API_KEY`
+  - `DATABASE_URL`
+- Keep Prisma schema and DB migrations aligned before release.
 
-Note: current e2e tests are pipeline-level and mock AI/database boundaries for determinism.
+## Current limitations to know
 
-## Debugging Guide
-If situation seems to drift between passes, debug in this order:
-
-1. In `app/api/process-thought/route.ts`, verify `ensureThreadContext(...)` runs before analysis.
-2. In `services/cbt/stagePipeline.service.ts`, inspect `thread.situation` immediately after `fetchThreadContext(threadId)`.
-3. Confirm pass 1 sets situation and calls `updateThreadSituation(threadId, situation)`.
-4. Confirm pass 2+ takes the story/emotion path, not fact/story regeneration path.
-5. Verify DB `Thread.situation` for that `threadId`.
-6. Check drift logic in route (`shouldResetThread`) did not intentionally create a new thread.
-
-Helpful breakpoint points:
-- `app/api/process-thought/route.ts` at `ensureThreadContext(...)`
-- `app/api/process-thought/route.ts` around `shouldResetThread`
-- `services/cbt/stagePipeline.service.ts` at `fetchThreadContext(...)`
-- `services/cbt/stagePipeline.service.ts` before `factStoryStageSchema.parse(...)`
-
-## Common Failure Modes and Fixes
-1. `Thread.situation` always null
-- Ensure migrations include `Thread.situation` column.
-- Ensure thread row is created before first pass.
-- Confirm `updateThreadSituation` succeeds.
-
-2. Story repeats situation
-- Verify `generateFactStoryStage` returns `situation` and `story` keys correctly.
-- Check post-processing in `lib/ai.ts` that trims duplicated situation text.
-
-3. Suggestions become generic/meta
-- Inspect `generateNextThoughtStage` prompt rules.
-- Ensure `validateThoughtSuggestions` is being called.
-
-4. Reflection never completes
-- Inspect `generateReflectionCompletion` decision path and history passed into it.
-
-## Production Notes
-- Run migrations before deploy so `Thread.situation` exists.
-- Keep OpenAI key and DB URL configured in deployment secrets.
-- Track rate limits and latency for stage-heavy flows.
-- Consider structured logging around threadId/sessionId for easier incident tracing.
+- AI stage quality depends on prompt reliability and model output consistency.
+- Some fallbacks intentionally return safe generic responses when validation fails.
+- Test files are excluded from production TypeScript build checks via `tsconfig.json` exclusions.
 
 ## License
-Internal project. Add a formal license if distributing externally.
+
+Internal/private project unless specified otherwise.

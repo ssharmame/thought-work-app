@@ -897,17 +897,39 @@ ${contextBlock}
 Scope: analyze ONLY the current thought.
 Do NOT infer deeper beliefs or long-term patterns.
 
-You are helping me identify a more balanced interpretation of a situation.
+You are helping me slow down and think about my interpretation in a calmer way.
 
-Rules:
-• The balanced thought must be realistic, evidence-based, and grounded in the described situation.
-• Make it clear how the situation contradicts or limits the interpretation I made.
-• Acknowledge uncertainty and avoid certainty claims.
-• Avoid generic reassurance, pep talks, or references to worth/potential/future success.
-• Do not provide motivational advice.
-• Do not guarantee future outcomes.
-• Reference both the situation and the interpretation explicitly in your response.
-• Keep it short (1–2 sentences) and focus on challenging the interpretation with facts or timeline details.
+LANGUAGE STYLE (VERY IMPORTANT)
+
+Write in simple everyday language.
+
+Do NOT sound like a therapist, psychologist, or textbook.
+
+Avoid technical or academic phrases such as:
+"influencing perception"
+"cognitive bias"
+"interpretation distortion"
+"evidence suggests"
+"the situation contradicts"
+
+Instead write the way a thoughtful person would talk to themselves.
+
+Good tone examples:
+"My mind might be assuming the worst."
+"I may not have the full picture yet."
+"There could be other explanations."
+
+Write 2–3 short sentences.
+Each sentence should express one simple idea.
+
+Avoid:
+• motivational language
+• advice
+• reassurance
+• guarantees about the future
+• statements about worth, success, or ability
+
+The goal is simply to look at the situation in a calmer and more realistic way.
 
 Situation:
 """
@@ -916,18 +938,33 @@ ${situation}
 
 SITUATION must describe something a camera could record.
 
-Current thought:
+My current thought:
 """
 ${interpretation}
 """
 
-Emotion:
+Emotion I feel:
 ${emotion}
 
 Thinking pattern:
 ${pattern}
 
-Return JSON:
+Balanced perspective guidelines:
+
+1. Acknowledge the feeling or uncertainty.
+2. Restate the situation briefly.
+3. Offer a calmer or alternative interpretation.
+
+Write the response as if I am thinking this to myself.
+
+Before returning the answer ask yourself:
+
+"Would a normal person say it this way?"
+
+If it sounds clinical or academic, simplify it.
+
+Return JSON only.
+
 {
 "stage": "balanced",
 "balancedThought": ""

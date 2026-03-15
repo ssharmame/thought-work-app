@@ -486,7 +486,7 @@ function ProductSection() {
 // ── How It Works ──────────────────────────────────────────────────────────────
 const analysisPhases = [
   {
-    phase: "What happened",
+    phase: "What actually happened",
     phaseColor: "oklch(0.50 0.10 220)",
     phaseBg: "oklch(0.93 0.03 220 / 0.5)",
     rows: [

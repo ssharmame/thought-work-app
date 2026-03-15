@@ -134,32 +134,32 @@ const buildAnalysisCards = (
     includeSituation
       ? {
           key: "fact",
-          title: "What happened",
+          title: "What actually happened",
           value: analysis.situation ?? "",
           style: INSIGHT_CARD_STYLES.fact,
         }
       : null,
     {
       key: "story",
-      title: "What your mind made it mean",
+      title: "What I assumed it meant",
       value: analysis.story ?? "",
       style: INSIGHT_CARD_STYLES.story,
     },
     {
       key: "emotion",
-      title: "How this might be making you feel",
+      title: "How this made me feel",
       value: analysis.emotion ?? "",
       style: INSIGHT_CARD_STYLES.emotion,
     },
     {
       key: "pattern",
-      title: "What your mind might be doing",
+      title: "A thinking pattern that might be happening",
       value: patternValue,
       style: INSIGHT_CARD_STYLES.pattern,
     },
     {
       key: "balanced",
-      title: "A more balanced way to look at this",
+      title: "A more balanced way to see this",
       value: analysis.balancedThought ?? "",
       style: INSIGHT_CARD_STYLES.balanced,
     },
@@ -797,7 +797,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         <FadeUp>
           <header className="text-center space-y-2 md:space-y-3">
             <h1 className="font-display text-3xl sm:text-4xl md:text-6xl font-semibold text-foreground text-balance leading-tight">
-              Observe how your mind
+              Notice how your mind
               <br />
               interprets situations
             </h1>
