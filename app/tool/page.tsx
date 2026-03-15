@@ -998,7 +998,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   <span
                     className="block h-3 w-3 rounded-full border-2"
                     style={{
-                      borderColor: "oklch(0.46 0.12 152)",
+                      borderColor: "oklch(0.48 0.08 310)",
                       background: "oklch(0.977 0.008 88)",
                     }}
                   />
@@ -1010,13 +1010,18 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   className="flex-1 rounded-2xl p-6 space-y-5"
                   style={{
                     background:
-                      "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.025 150) 100%)",
-                    border: "1px solid oklch(0.88 0.025 150 / 0.5)",
+                      "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.962 0.025 310) 100%)",
+                    border: "1px solid oklch(0.86 0.035 310 / 0.55)",
                     boxShadow: "0 8px 32px oklch(0.22 0.018 248 / 0.07)",
                   }}
                 >
                   <div>
-                    <SectionLabel>What thought came next?</SectionLabel>
+                    <p
+                      className="text-sm font-semibold uppercase tracking-widest mb-4"
+                      style={{ color: "oklch(0.39 0.09 310)" }}
+                    >
+                      What thought came next?
+                    </p>
                     <textarea
                       data-ocid="thought_page.next_thought.textarea"
                       value={thought}
@@ -1028,7 +1033,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                       className="mt-2 h-36 md:h-32 w-full rounded-xl p-4 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
                       style={{
                         background: "oklch(0.995 0.004 88 / 0.8)",
-                        border: "1px solid oklch(0.88 0.015 88)",
+                        border: "1px solid oklch(0.86 0.03 310 / 0.6)",
                       }}
                     />
                   </div>
@@ -1050,9 +1055,9 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                           onClick={() => handleSuggestionClick(chip)}
                           className="rounded-full px-4 py-2 text-sm transition-colors"
                           style={{
-                            background: "oklch(0.93 0.025 150 / 0.5)",
-                            border: "1px solid oklch(0.80 0.04 150 / 0.5)",
-                            color: "oklch(0.38 0.08 152)",
+                            background: "oklch(0.935 0.03 310 / 0.5)",
+                            border: "1px solid oklch(0.82 0.04 310 / 0.65)",
+                            color: "oklch(0.35 0.08 310)",
                           }}
                         >
                           {chip}
