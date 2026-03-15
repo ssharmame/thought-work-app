@@ -793,15 +793,15 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         </nav>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-16 flex flex-col gap-12">
+      <main className="max-w-3xl mx-auto px-5 pt-8 pb-4 md:px-6 md:py-16 flex flex-col gap-8 md:gap-12">
         <FadeUp>
-          <header className="text-center space-y-3">
-            <h1 className="font-display text-5xl md:text-6xl font-semibold text-foreground text-balance leading-tight">
+          <header className="text-center space-y-2 md:space-y-3">
+            <h1 className="font-display text-3xl sm:text-4xl md:text-6xl font-semibold text-foreground text-balance leading-tight">
               Observe how your mind
               <br />
               interprets situations
             </h1>
-            <p className="text-lg text-muted-foreground md:text-xl">
+            <p className="text-base text-muted-foreground md:text-xl">
               Write the thought that is bothering you right now.
             </p>
           </header>
@@ -810,7 +810,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         {!analysis && !clarification && !loading && (
           <FadeUp delay={0.1}>
             <section
-              className="rounded-3xl p-8 space-y-6"
+              className="rounded-3xl p-5 sm:p-8 space-y-6"
               style={{
                 background:
                   "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.025 150) 100%)",
@@ -830,7 +830,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   }}
                   onBlur={handleThoughtBlur}
                   placeholder={placeholderExample}
-                  className="h-36 w-full rounded-2xl p-5 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
+                  className="h-40 md:h-36 w-full rounded-2xl p-5 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
                   style={{
                     background: "oklch(0.995 0.004 88 / 0.8)",
                     border: "1px solid oklch(0.88 0.015 88)",
@@ -1025,7 +1025,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                         setSuggestionOverride(undefined);
                       }}
                       placeholder="Share the next thought in this situation…"
-                      className="mt-2 h-32 w-full rounded-xl p-4 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
+                      className="mt-2 h-36 md:h-32 w-full rounded-xl p-4 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
                       style={{
                         background: "oklch(0.995 0.004 88 / 0.8)",
                         border: "1px solid oklch(0.88 0.015 88)",
