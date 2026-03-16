@@ -226,7 +226,11 @@ export async function POST(req: Request) {
       })
     }
 
-    const decision = handleClassification(classification.type, normalizedThought)
+    const decision = await handleClassification(
+      classification.type,
+      normalizedThought,
+      classification.valid
+    )
 
     if (decision.status === "guidance") {
       return Response.json(createGuidanceResponse(decision.message))

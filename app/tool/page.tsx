@@ -802,7 +802,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
               interprets situations
             </h1>
             <p className="text-base text-muted-foreground md:text-xl">
-              Write the thought that is bothering you right now.
+              What worrying thought came to mind?
             </p>
           </header>
         </FadeUp>
@@ -862,7 +862,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                 Analyze my thought
               </Button>
               <p className="text-sm text-muted-foreground text-center">
-                This is not advice. It&apos;s a mirror for your thinking.
+                This is not advice. It&apos;s a mirror of your worrying thinking.
               </p>
             </section>
           </FadeUp>

@@ -1,3 +1,5 @@
+import { classifyThoughtIntent } from "@/lib/ai"
+
 export type DecisionResult =
   | { status: "continue" }
   | { status: "guidance"; message: string }
@@ -6,37 +8,44 @@ export type DecisionResult =
 const safetyMessage =
   "I'm really sorry you're feeling this way. You don't have to go through this alone. If you're in immediate danger, please contact local emergency services or a crisis support line."
 
-const thoughtIndicators = [
-  "i think",
-  "i feel",
-  "i believe",
-  "maybe",
-  "i might",
-  "i guess",
-  "probably",
-  "i am worried",
-]
-
-function containsThought(text: string) {
-  const normalized = text.toLowerCase()
-  return thoughtIndicators.some((indicator) => normalized.includes(indicator))
-}
-
-export function handleClassification(type: string, text: string): DecisionResult {
-  if (containsThought(text)) {
-    return { status: "continue" }
-  }
+export async function handleClassification(
+  type: string,
+  text: string,
+  valid: boolean
+): Promise<DecisionResult> {
   const normalized = (type || "").toUpperCase().trim()
   switch (normalized) {
-    case "THOUGHT":
-      return { status: "continue" }
-    case "SELF_HARM_RISK":
-      return { status: "safety", message: safetyMessage }
-    case "SOLUTION_SEEKING":
+    case "THOUGHT": {
+      const thoughtIntent = await classifyThoughtIntent(text)
+      if (thoughtIntent.shouldRunReflection) {
+        return { status: "continue" }
+      }
       return {
         status: "guidance",
         message:
-          "It sounds like you're looking for advice. ThoughtLens focuses on understanding the thought behind a situation rather than giving advice.",
+          thoughtIntent.message ||
+          "When this happened, did any worrying thought or concern come to mind?",
+      }
+    }
+    case "SELF_HARM_RISK":
+      return { status: "safety", message: safetyMessage }
+    case "SOLUTION_SEEKING":
+      if (valid) {
+        const thoughtIntent = await classifyThoughtIntent(text)
+        if (thoughtIntent.shouldRunReflection) {
+          return { status: "continue" }
+        }
+        return {
+          status: "guidance",
+          message:
+            thoughtIntent.message ||
+            "When this happened, did any worrying thought or concern come to mind?",
+        }
+      }
+      return {
+        status: "guidance",
+        message:
+          "ThoughtLens focuses on understanding the thought behind a situation rather than giving advice. What thought or concern is on your mind right now?",
       }
     case "SITUATION":
       return {

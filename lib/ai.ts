@@ -104,6 +104,19 @@ type ClassificationResult = {
   valid: boolean
 }
 
+type ThoughtIntentType =
+  | "DISTORTED_THOUGHT"
+  | "BALANCED_THOUGHT"
+  | "GOAL_OR_DESIRE"
+  | "SITUATION_ONLY"
+  | "EMOTION_ONLY"
+
+export type ThoughtIntentResult = {
+  type: ThoughtIntentType
+  shouldRunReflection: boolean
+  message: string | null
+}
+
 export type SituationContinuityInput = {
   situation: string
   thought: string
@@ -200,6 +213,112 @@ ${text.trim()}
 `
 
   return runPrompt<ClassificationResult>(prompt)
+}
+
+export async function classifyThoughtIntent(
+  text: string
+): Promise<ThoughtIntentResult> {
+  const prompt = `
+You are classifying a user's statement for a reflection tool.
+
+The tool analyzes worrying interpretations about situations (automatic negative thoughts).
+
+Your job is to determine whether the user's statement contains a worrying interpretation that should be explored using reflection.
+
+Classify into exactly one type:
+- DISTORTED_THOUGHT
+- BALANCED_THOUGHT
+- GOAL_OR_DESIRE
+- SITUATION_ONLY
+- EMOTION_ONLY
+
+DISTORTED_THOUGHT
+A worrying interpretation, prediction, or assumption about a situation.
+Examples:
+"Maybe I failed the interview."
+"My boss probably thinks I'm incompetent."
+"Everyone else seems better than me."
+
+BALANCED_THOUGHT
+A thought that already sounds reflective, reasonable, or solution-oriented.
+These thoughts do NOT contain a worrying interpretation.
+Examples:
+"Maybe I just need to manage my schedule better."
+"I might need to give this more time."
+"Perhaps I should focus on what I can control."
+
+GOAL_OR_DESIRE
+A statement about something the person wants to do or achieve in the future.
+Examples:
+"I want to start my own business."
+"I want to switch careers."
+"I hope to move to another country."
+
+SITUATION_ONLY
+A description of what happened without interpretation.
+Examples:
+"My boss hasn't replied to my message."
+"It has been 3 days since my interview."
+
+EMOTION_ONLY
+A statement describing a feeling without explaining the thought behind it.
+Examples:
+"I feel anxious."
+"I feel overwhelmed."
+
+Important rules:
+1. If the statement contains a worrying interpretation -> DISTORTED_THOUGHT
+2. If the statement already sounds balanced or solution-oriented -> BALANCED_THOUGHT
+3. Only choose GOAL_OR_DESIRE if the user is describing a life goal or aspiration.
+4. Do NOT classify balanced reflections as goals.
+
+Return JSON:
+{
+"type": "",
+"shouldRunReflection": true,
+"message": ""
+}
+
+Rules:
+
+DISTORTED_THOUGHT
+A worrying interpretation or assumption about a situation.
+shouldRunReflection = true
+message = null
+
+BALANCED_THOUGHT
+A thought that already sounds reasonable or reflective.
+shouldRunReflection = false
+message =
+"Your thought already seems balanced and reflective. If another worrying thought or concern comes up about this situation, you can share it here."
+
+GOAL_OR_DESIRE
+A statement about something the person wants to do or achieve.
+shouldRunReflection = false
+message =
+"It sounds like you're thinking about a goal. When you imagine taking that step, does any worrying thought or doubt come to mind?"
+
+SITUATION_ONLY
+A description of what happened without an interpretation.
+shouldRunReflection = false
+message =
+"When this happened, did any worrying thought or concern come to mind?"
+
+EMOTION_ONLY
+A feeling without a clear thought about the situation.
+shouldRunReflection = false
+message =
+"When you feel this way, what worrying thought usually comes to mind?"
+
+Return JSON only.
+
+Input:
+"""
+${text.trim()}
+"""
+`
+
+  return runPrompt<ThoughtIntentResult>(prompt)
 }
 
 export async function classifySituationContinuity(
