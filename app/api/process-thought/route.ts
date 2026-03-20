@@ -1,13 +1,10 @@
 import {
   classifyInput,
-  detectPatternFromText,
   generateFactStoryStage,
   generateRecognitionStage,
   generateStoryEmotionStage,
   generatePatternStage,
   generateBalancedStage,
-  generateNextThoughtStage,
-  getDistortionProgression,
   inferEmotionFromText,
   type RecognitionContext,
   type ThoughtContext,
@@ -31,12 +28,10 @@ import {
   validateRecognitionStage,
   validatePatternStage,
   validateBalancedStage,
-  validateNextThoughtStage,
   fallbackFactStoryStage,
   fallbackRecognitionStage,
   fallbackPatternStage,
   fallbackBalancedStage,
-  fallbackNextThoughtStage,
 } from "@/services/reflectionValidator.service"
 import {
   factStoryStageSchema,
@@ -120,7 +115,9 @@ const recognitionSchema: SchemaValidator = {
 const patternSchema: SchemaValidator = {
   stage: (value) => value === "pattern",
   pattern: (value) => value === null || typeof value === "string",
-  explanation: (value) => value === null || typeof value === "string",
+  // Accept either patternMessage (new) or explanation (legacy)
+  patternMessage: (value) => value === undefined || value === null || typeof value === "string",
+  explanation: (value) => value === undefined || value === null || typeof value === "string",
 }
 
 const balancedSchema: SchemaValidator = {
@@ -128,19 +125,6 @@ const balancedSchema: SchemaValidator = {
   balancedThought: isNonEmptyString,
 }
 
-const nextThoughtSchema: SchemaValidator = {
-  stage: (value) => value === "next_thought",
-  prompt: (value) =>
-    value === undefined ||
-    (typeof value === "string" && value.trim().length > 0),
-  suggestions: (value) =>
-    Array.isArray(value) &&
-    value.every((item) => typeof item === "string" && item.trim().length > 0),
-  coreBelief: (value) =>
-    value === undefined ||
-    value === null ||
-    (typeof value === "string" && value.trim().length > 0),
-}
 
 const storyEmotionSchema: SchemaValidator = {
   story: isNonEmptyString,
@@ -442,60 +426,6 @@ export async function POST(req: Request) {
         contextWithPattern
       )
 
-      /* -----------------------------
-       NEXT THOUGHT
-      ------------------------------*/
-
-      const contextWithBalance: ThoughtContext = {
-        ...contextWithPattern,
-        balancedThought: balanced.balancedThought,
-        previousThoughts,
-        previousPatterns,
-        historyLength: effectiveThreadHistory.length,
-        thoughtHistory: previousThoughts,
-      }
-
-      const nextThought = await validateNextThoughtStage(
-        normalizedThought,
-        previousThoughts,
-        await safeGenerateStage(
-          () => generateNextThoughtStage(contextWithBalance),
-          () => ({ ...fallbackNextThoughtStage }),
-          nextThoughtSchema,
-          "next_thought"
-        ),
-        contextWithBalance
-      )
-
-      const suggestionCandidates = Array.isArray(nextThought.suggestions)
-        ? nextThought.suggestions
-        : []
-      const balancedExists = Boolean(balanced.balancedThought?.trim())
-      let filteredSuggestions = suggestionCandidates
-
-      const progressionTargets = getDistortionProgression(previousPattern)
-      const normalizedTargets = progressionTargets?.map((value) =>
-        value.toLowerCase()
-      )
-
-      // Keep suggestions aligned with expected CBT progression when we have a prior pattern.
-      if (normalizedTargets?.length) {
-        const matched = suggestionCandidates.filter((suggestion) => {
-          const detectedPattern = detectPatternFromText(suggestion)
-          return (
-            detectedPattern &&
-            normalizedTargets.includes(detectedPattern.trim().toLowerCase())
-          )
-        })
-        if (matched.length > 0) {
-          filteredSuggestions = matched
-        }
-      }
-
-      const nextThoughtWithSuggestions = balancedExists
-        ? { ...nextThought, suggestions: filteredSuggestions }
-        : { ...nextThought, suggestions: [] }
-
       // Flatten stage outputs into the stable API response shape consumed by the UI.
       const analysis = mergeAnalysisStages(
         {
@@ -503,7 +433,6 @@ export async function POST(req: Request) {
           recognition,
           pattern,
           balanced,
-          next_thought: nextThoughtWithSuggestions,
         },
         previousThoughts,
         threadSituation
@@ -552,7 +481,6 @@ export async function POST(req: Request) {
           recognition,
           pattern,
           balanced,
-          nextThought: nextThoughtWithSuggestions,
         },
 
         threadInsights: insight,

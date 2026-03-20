@@ -1,7 +1,6 @@
 import type {
   BalancedStage,
   FactStoryStage,
-  NextThoughtStage,
   PatternStage,
   RecognitionStage,
 } from "@/services/reflectionValidator.service"
@@ -16,7 +15,6 @@ export type MergedAnalysis = {
   pattern: string | null
   patternExplanation: string | null
   balancedThought: string | null
-  suggestions: string[]
   reflectionQuestion: string | null
   normalization: string | null
   coreBelief: string | null
@@ -29,7 +27,6 @@ type AnalysisStages = {
   recognition: RecognitionStage
   pattern: PatternStage
   balanced: BalancedStage
-  next_thought: NextThoughtStage
 }
 
 const ensureStringArray = (value: unknown) => {
@@ -44,18 +41,10 @@ export function mergeAnalysisStages(
   context: string[] = [],
   threadSituation: string | null = null
 ): MergedAnalysis {
-  const { fact_story, recognition, pattern, balanced, next_thought } = stages
+  const { fact_story, recognition, pattern, balanced } = stages
 
   const emotions = ensureStringArray(fact_story.emotions)
-  const balancedExists = Boolean(balanced.balancedThought?.trim())
-  const suggestions =
-    balancedExists && next_thought.suggestions
-      ? ensureStringArray(next_thought.suggestions)
-      : []
-  const coreBelief = next_thought.coreBelief ?? null
-
-  const finalSituation =
-    threadSituation ?? fact_story.situation ?? null
+  const finalSituation = threadSituation ?? fact_story.situation ?? null
 
   return {
     thought: fact_story.thought ?? null,
@@ -65,12 +54,13 @@ export function mergeAnalysisStages(
     emotion: emotions[0] ?? "",
     automaticThought: fact_story.story ?? null,
     pattern: pattern.pattern ?? null,
-    patternExplanation: pattern.explanation ?? null,
+    // patternMessage is the contextual AI message shown to user.
+    // Falls back to explanation for backwards compatibility.
+    patternExplanation: pattern.patternMessage?.trim() || pattern.explanation?.trim() || null,
     balancedThought: balanced.balancedThought ?? null,
-    suggestions,
     reflectionQuestion: recognition.prompt ?? null,
     normalization: null,
-    coreBelief,
+    coreBelief: null,
     trigger: null,
     context,
   }

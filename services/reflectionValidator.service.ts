@@ -32,7 +32,8 @@ export type RecognitionStage = {
 export type PatternStage = {
   stage: "pattern"
   pattern: string | null
-  explanation: string | null
+  explanation: string | null  // kept for backwards compat — maps to patternMessage
+  patternMessage?: string | null
 }
 
 export type BalancedStage = {
@@ -111,6 +112,7 @@ export const fallbackPatternStage: PatternStage = {
   stage: "pattern",
   pattern: null,
   explanation: null,
+  patternMessage: null,
 }
 
 export const fallbackBalancedStage: BalancedStage = {
@@ -124,10 +126,9 @@ export const fallbackNextThoughtStage: NextThoughtStage = {
   prompt:
     "When your mind keeps going with this situation, what thought shows up next?",
   suggestions: [
-    "Maybe I'm overthinking this",
-    "I'm worried something went wrong",
-    "I'm unsure what this means",
-    "Maybe I'm not good enough",
+    "Maybe I'm scared this says something about my worth",
+    "Maybe there's another explanation I haven't considered",
+    "Maybe I could take one small step to find out more",
   ],
 }
 

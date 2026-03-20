@@ -3,9 +3,11 @@ import ThoughtTimeline from "@/components/reflection/ThoughtTimeline";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { validateSimpleInput } from "@/lib/simpleValidation";
+import { PATTERN_DISPLAY } from "@/lib/ai";
 import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+
 
 const placeholderExamples = [
   "It's been 3 days since my interview — maybe I wasn't selected",
@@ -35,7 +37,6 @@ type ThoughtAnalysisResult = {
   balancedThought: string;
   thought?: string | null;
   context?: string[];
-  suggestions: string[];
 };
 
 type ComputedThreadInsights = {
@@ -119,6 +120,7 @@ type AnalysisCard = {
   title: string;
   value: string;
   style: { bg: string; border: string; dot: string };
+  patternKey?: string;
 };
 
 const buildAnalysisCards = (
@@ -126,15 +128,14 @@ const buildAnalysisCards = (
   options?: { includeSituation?: boolean },
 ): AnalysisCard[] => {
   const includeSituation = options?.includeSituation ?? true;
-  const patternValue =
-    analysis.patternExplanation?.trim() ||
-    (analysis.pattern ? patternToInsight(analysis.pattern) : "") ||
-    "";
+  // Use contextual AI message (patternExplanation) directly —
+  // no fallback to generic patternToInsight string matching
+  const patternValue = analysis.patternExplanation?.trim() ?? "";
   return [
     includeSituation
       ? {
           key: "fact",
-          title: "What actually happened",
+          title: "Let's start with what we know for sure",
           value: analysis.situation ?? "",
           style: INSIGHT_CARD_STYLES.fact,
         }
@@ -151,12 +152,15 @@ const buildAnalysisCards = (
       value: analysis.emotion ?? "",
       style: INSIGHT_CARD_STYLES.emotion,
     },
-    {
-      key: "pattern",
-      title: "A thinking pattern that might be happening",
-      value: patternValue,
-      style: INSIGHT_CARD_STYLES.pattern,
-    },
+    patternValue
+      ? {
+          key: "pattern",
+          title: "A thinking pattern that might be happening",
+          value: patternValue,
+          style: INSIGHT_CARD_STYLES.pattern,
+          patternKey: analysis.pattern ?? undefined,
+        }
+      : null,
     {
       key: "balanced",
       title: "A more balanced way to see this",
@@ -170,9 +174,14 @@ type InsightCardProps = {
   title: string;
   value: string;
   style: { bg: string; border: string; dot: string };
+  patternKey?: string;
 };
 
-function InsightCard({ title, value, style }: InsightCardProps) {
+function InsightCard({ title, value, style, patternKey }: InsightCardProps) {
+  const display = patternKey
+    ? PATTERN_DISPLAY[patternKey.toLowerCase()]
+    : null;
+
   return (
     <div
       className="flex-1 rounded-2xl p-6"
@@ -182,13 +191,55 @@ function InsightCard({ title, value, style }: InsightCardProps) {
         boxShadow: "0 4px 20px oklch(0.22 0.018 248 / 0.04)",
       }}
     >
-      <p
-        className="text-sm font-bold uppercase tracking-widest mb-3"
-        style={{ color: style.dot }}
-      >
-        {title}
-      </p>
-      <p className="text-base leading-relaxed text-foreground">{value}</p>
+      {/* Human-friendly label if pattern */}
+      {display ? (
+        <>
+          <p
+            className="text-xs font-bold uppercase tracking-widest mb-1"
+            style={{ color: style.dot, opacity: 0.7 }}
+          >
+            A thinking pattern
+          </p>
+          <p
+            className="text-base font-semibold mb-3 leading-snug"
+            style={{ color: style.dot }}
+          >
+            {display.label}
+          </p>
+          {/* Contextual AI message */}
+          <p className="text-base leading-relaxed text-foreground mb-4">
+            {value}
+          </p>
+          {/* Fixed reflection question */}
+          <div
+            className="rounded-xl px-4 py-3 mt-2"
+            style={{
+              background: "oklch(0.97 0.008 88)",
+              border: `1px solid ${style.border}`,
+            }}
+          >
+            <p
+              className="text-xs font-semibold uppercase tracking-wider mb-1"
+              style={{ color: style.dot }}
+            >
+              Something to sit with
+            </p>
+            <p className="text-sm leading-relaxed text-foreground">
+              {display.question}
+            </p>
+          </div>
+        </>
+      ) : (
+        <>
+          <p
+            className="text-sm font-bold uppercase tracking-widest mb-3"
+            style={{ color: style.dot }}
+          >
+            {title}
+          </p>
+          <p className="text-base leading-relaxed text-foreground">{value}</p>
+        </>
+      )}
     </div>
   );
 }
@@ -433,13 +484,15 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
   const [guidanceMessage, setGuidanceMessage] = useState<string | null>(null);
   const [contextReady, setContextReady] = useState(false);
   const [pass, setPass] = useState(1);
-  const [revealCount, setRevealCount] = useState(1);
+  // revealGroup controls which card group is visible:
+  // 0 = nothing, 1 = fact, 2 = story+emotion, 3 = pattern, 4 = balanced
+  const [revealGroup, setRevealGroup] = useState(0);
   const [thoughtHistory, setThoughtHistory] = useState<ThoughtHistoryEntry[]>(
     [],
   );
-  const [suggestionOverride, setSuggestionOverride] = useState<
-    string | undefined
-  >(undefined);
+  const [balancedRevealed, setBalancedRevealed] = useState(false);
+  const [acknowledgement, setAcknowledgement] = useState("");
+  const [reassurance, setReassurance] = useState("");
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const visitorIdRef = useRef("");
   const sessionIdRef = useRef("");
@@ -480,16 +533,6 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     () => latestAnalysisCards.filter((card) => card.value.trim()),
     [latestAnalysisCards],
   );
-  const suggestionStabilized = useMemo(() => {
-    if (thoughtHistory.length < 3) return false;
-    const lastThreePatterns = thoughtHistory
-      .slice(-3)
-      .map((entry) => entry.analysis.pattern?.trim() ?? "");
-    if (lastThreePatterns.some((pattern) => !pattern)) return false;
-    return lastThreePatterns.every(
-      (pattern) => pattern === lastThreePatterns[0],
-    );
-  }, [thoughtHistory]);
 
   const initializeContext = () => {
     if (typeof window === "undefined") return false;
@@ -520,30 +563,6 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     return () => window.clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    if (!analysis) {
-      setRevealCount(1);
-      return;
-    }
-    if (
-      latestVisibleCards.length === 0 ||
-      revealCount >= latestVisibleCards.length
-    )
-      return;
-    const timer = window.setTimeout(
-      () => setRevealCount((current) => current + 1),
-      600,
-    );
-    return () => window.clearTimeout(timer);
-  }, [analysis, latestVisibleCards.length, revealCount]);
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setThought(suggestion);
-    setHint("");
-    setSuggestionOverride(suggestion);
-    setValidationMessage("");
-    setGuidanceMessage(null);
-  };
   const handleClarificationQuestion = (question: string) => {
     setClarification(null);
     processThought(question);
@@ -560,11 +579,38 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     setClarification(null);
     setThought("");
     setPass(1);
-    setRevealCount(1);
+    setRevealGroup(0);
     setThoughtHistory([]);
-    setSuggestionOverride(undefined);
     setValidationMessage("");
     setGuidanceMessage(null);
+    setBalancedRevealed(false);
+    setAcknowledgement("");
+    setReassurance("");
+  };
+
+  // User signals their next thought is about a different situation entirely.
+  // Resets the thread context (new threadId, cleared history) but preserves
+  // whatever they've typed so it submits as the first thought of a fresh thread.
+  const handleDifferentSituation = () => {
+    const currentThought = thought;
+    threadIdRef.current = createUUID();
+    setHint("");
+    setClarification(null);
+    setPass(1);
+    setRevealGroup(0);
+    setThoughtHistory([]);
+    setValidationMessage("");
+    setGuidanceMessage(null);
+    setBalancedRevealed(false);
+    // If they've typed something, submit it as a new thread immediately.
+    // If the textarea is empty, fall through to the clean initial input state.
+    if (currentThought.trim().length >= 6) {
+      processThought(currentThought);
+    } else {
+      setAnalysis(null);
+      setAcknowledgement("");
+      setReassurance("");
+    }
   };
 
   const processThought = async (overrideText?: string) => {
@@ -582,7 +628,50 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     setHint("");
     setClarification(null);
     setGuidanceMessage(null);
+
+    // Clear previous analysis and acknowledgement so the calming loading card
+    // shows on every submission — not just the first one.
+    setAnalysis(null);
+    setAcknowledgement("");
+    setReassurance("");
     setLoading(true);
+
+    // Phase 1 — classify the input (~400-600ms).
+    // This tells us whether to warm up with acknowledgement or return guidance immediately.
+    let classifyResult: { status: string; message?: string };
+    try {
+      const classifyRes = await fetch("/api/classify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thought: message }),
+      });
+      classifyResult = await classifyRes.json();
+    } catch {
+      classifyResult = { status: "guidance", message: "Something went wrong. Please try again." };
+    }
+
+    if (classifyResult.status === "guidance" || classifyResult.status === "safety") {
+      setGuidanceMessage(classifyResult.message || "We couldn't identify a clear thought.");
+      setLoading(false);
+      return;
+    }
+
+    // Phase 2 — confirmed distorted thought.
+    // Fire /api/acknowledge now — the AI-written line is the first and only
+    // acknowledgement shown. No string-matching fallback needed.
+    fetch("/api/acknowledge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ thought: message }),
+    })
+      .then((r) => r.json())
+      .then((result) => {
+        if (result.acknowledgement) setAcknowledgement(result.acknowledgement);
+        if (result.reassurance) setReassurance(result.reassurance);
+      })
+      .catch(() => {
+        // acknowledge failed — loading card stays on "One moment…", that's fine
+      });
 
     try {
       const res = await fetch("/api/process-thought", {
@@ -645,7 +734,6 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         trigger: asString(payload.trigger),
         reflectionQuestion: asString(payload.reflectionQuestion),
         balancedThought: asString(payload.balancedThought),
-        suggestions: asStringArray(payload.suggestions),
         context: Array.isArray(payload.context)
           ? payload.context.map((item: unknown) => String(item))
           : [],
@@ -654,7 +742,8 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
 
       setAnalysis(typedResult);
       setPass((prev) => Math.min(prev + 1, 4));
-      setRevealCount(1);
+      setRevealGroup(1);
+      setBalancedRevealed(false);
       setThoughtHistory((prev) => [
         ...prev,
         {
@@ -671,8 +760,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
       setValidationMessage("");
     } finally {
       setLoading(false);
-      setSuggestionOverride(undefined);
-    }
+      }
   };
 
   const renderTimelineEntry = (entry: ThoughtHistoryEntry, index: number) => {
@@ -680,8 +768,42 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
       includeSituation: thoughtHistory.length <= 1,
     });
     const visibleCards = cards.filter((card) => card.value.trim());
+
+    // Group cards into 3 phases:
+    // Group 1: fact only
+    // Group 2: story + emotion
+    // Group 3: pattern
+    // Group 4: balanced (already user-gated separately)
+    const GROUP_MAP: Record<string, number> = {
+      fact: 1,
+      story: 2,
+      emotion: 2,
+      pattern: 3,
+      balanced: 4,
+    }
+
+    // Continue button labels per group
+    const CONTINUE_LABELS: Record<number, string> = {
+      1: "I see — what did my mind make of this?",
+      2: "What thinking pattern is this?",
+      3: "Show me a clearer way to see this",
+    }
+
+    // Which groups are present in this entry
+    const groupsPresent = Array.from(
+      new Set(visibleCards.map((c) => GROUP_MAP[c.key] ?? 1))
+    ).sort()
+
+    // Highest group that has cards (excluding balanced which is self-gated)
+    const maxNonBalancedGroup = Math.max(
+      ...groupsPresent.filter((g) => g < 4),
+      0
+    )
+
     return (
       <Fragment key={`entry-${index}-${entry.thought}`}>
+
+        {/* Thought bubble */}
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -704,18 +826,93 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
             }}
           >
             <p
-              className="text-sm font-bold uppercase tracking-widest mb-3"
+              className="text-xs font-bold uppercase tracking-widest mb-3"
               style={{ color: "oklch(0.42 0.11 152)" }}
             >
-              Your thought
+              You wrote
             </p>
             <p className="text-base font-semibold leading-relaxed text-foreground">
               &ldquo;{entry.thought}&rdquo;
             </p>
+            <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+              Let&apos;s slow this down and look at it together.
+            </p>
           </div>
         </motion.div>
-        {visibleCards.map((card, cardIdx) => {
-          if (cardIdx >= revealCount) return null;
+
+        {/* Cards grouped — each group reveals on user tap */}
+        {visibleCards.map((card) => {
+          const cardGroup = GROUP_MAP[card.key] ?? 1
+          const isBalanced = card.key === "balanced"
+
+          // Don't show cards beyond current group
+          if (cardGroup > revealGroup) return null
+
+          // Balanced card — keep existing user-gated behaviour
+          if (isBalanced) {
+            if (!balancedRevealed) {
+              // Only show balanced gate when group 3 is revealed
+              if (revealGroup < 3) return null
+              return (
+                <motion.div
+                  key={`balanced-gate-${index}`}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  className="flex items-start gap-4 mb-8"
+                >
+                  <div className="mt-2 flex-shrink-0">
+                    <span
+                      className="block h-3 w-3 rounded-full"
+                      style={{ background: "oklch(0.46 0.12 152 / 0.4)" }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBalancedRevealed(true)}
+                    className="flex-1 rounded-2xl p-5 text-left transition-all"
+                    style={{
+                      background: "oklch(0.92 0.05 152 / 0.25)",
+                      border: "1px dashed oklch(0.46 0.12 152 / 0.4)",
+                    }}
+                  >
+                    <p
+                      className="text-sm font-semibold"
+                      style={{ color: "oklch(0.42 0.11 152)" }}
+                    >
+                      Ready to see a more balanced perspective? →
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Tap when you feel ready.
+                    </p>
+                  </button>
+                </motion.div>
+              )
+            }
+            return (
+              <motion.div
+                key={`${card.key}-${index}`}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="flex items-start gap-4 mb-8"
+              >
+                <div className="mt-2 flex-shrink-0">
+                  <span
+                    className="block h-3 w-3 rounded-full"
+                    style={{ background: card.style.dot }}
+                  />
+                </div>
+                <InsightCard
+                  title={card.title}
+                  value={card.value.trim()}
+                  style={card.style}
+                  patternKey={card.patternKey}
+                />
+              </motion.div>
+            )
+          }
+
           return (
             <motion.div
               key={`${card.key}-${index}`}
@@ -734,17 +931,52 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                 title={card.title}
                 value={card.value.trim()}
                 style={card.style}
+                patternKey={card.patternKey}
               />
             </motion.div>
-          );
+          )
         })}
+
+        {/* Continue button — shows after each group if more groups remain */}
+        {revealGroup > 0 &&
+          revealGroup <= maxNonBalancedGroup &&
+          CONTINUE_LABELS[revealGroup] && (
+            <motion.div
+              key={`continue-${revealGroup}-${index}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              className="flex items-start gap-4 mb-8"
+            >
+              <div className="mt-2 flex-shrink-0">
+                <span
+                  className="block h-3 w-3 rounded-full"
+                  style={{ background: "oklch(0.46 0.12 152 / 0.3)" }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setRevealGroup((g) => g + 1)}
+                className="flex-1 rounded-2xl px-5 py-4 text-left transition-all"
+                style={{
+                  background: "oklch(0.975 0.010 152 / 0.4)",
+                  border: "1px solid oklch(0.46 0.12 152 / 0.25)",
+                }}
+              >
+                <p
+                  className="text-sm font-medium"
+                  style={{ color: "oklch(0.42 0.11 152)" }}
+                >
+                  {CONTINUE_LABELS[revealGroup]} →
+                </p>
+              </button>
+            </motion.div>
+          )}
+
       </Fragment>
-    );
+    )
   };
 
-  const suggestionOptions = analysis?.suggestions ?? [];
-  const showSuggestionChips =
-    suggestionOptions.length > 0 && !suggestionStabilized;
   const placeholderExample = placeholderExamples[placeholderIndex];
   const inlineMessage = guidanceMessage ?? validationMessage ?? hint;
   const showInsights = pass >= 4 && Boolean(analysis);
@@ -796,18 +1028,16 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
       <main className="max-w-3xl mx-auto px-5 pt-8 pb-4 md:px-6 md:py-16 flex flex-col gap-8 md:gap-12">
         <FadeUp>
           <header className="text-center space-y-2 md:space-y-3">
-            <h1 className="font-display text-3xl sm:text-4xl md:text-6xl font-semibold text-foreground text-balance leading-tight">
-              Notice how your mind
-              <br />
-              interprets situations
+            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-semibold text-foreground text-balance leading-tight">
+              What is your mind telling you?
             </h1>
-            <p className="text-base text-muted-foreground md:text-xl">
-              What worrying thought came to mind?
+            <p className="text-base md:text-lg font-medium" style={{ color: "oklch(0.40 0.025 248)" }}>
+              Share the thought — not just what happened, but what you&apos;re making of it.
             </p>
           </header>
         </FadeUp>
 
-        {!analysis && !clarification && !loading && (
+        {thoughtHistory.length === 0 && !loading && !clarification && (
           <FadeUp delay={0.1}>
             <section
               className="rounded-3xl p-5 sm:p-8 space-y-6"
@@ -832,12 +1062,12 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   placeholder={placeholderExample}
                   className="h-40 md:h-36 w-full rounded-2xl p-5 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
                   style={{
-                    background: "oklch(0.995 0.004 88 / 0.8)",
-                    border: "1px solid oklch(0.88 0.015 88)",
+                    background: "oklch(1 0 0)",
+                    border: "1.5px solid oklch(0.78 0.025 88)",
                   }}
                 />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  We&apos;ll help you see the thinking pattern behind it.
+                <p className="mt-2 text-sm font-medium" style={{ color: "oklch(0.45 0.020 248)" }}>
+                  Whatever you&apos;re feeling right now makes sense. Let&apos;s slow it down together.
                 </p>
               </div>
               {inlineMessage && (
@@ -845,9 +1075,9 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   data-ocid="thought_page.error_state"
                   className="mt-3 rounded-xl p-4 text-sm"
                   style={{
-                    background: "oklch(0.93 0.025 150 / 0.4)",
-                    border: "1px solid oklch(0.80 0.04 150 / 0.5)",
-                    color: "oklch(0.35 0.08 152)",
+                    background: "oklch(0.93 0.025 150 / 0.5)",
+                    border: "1px solid oklch(0.72 0.06 150 / 0.6)",
+                    color: "oklch(0.28 0.08 152)",
                   }}
                 >
                   {inlineMessage}
@@ -859,16 +1089,16 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                 className="w-full rounded-full h-12 text-base font-semibold"
                 style={{ boxShadow: "0 4px 20px oklch(0.46 0.12 152 / 0.30)" }}
               >
-                Analyze my thought
+                Understand this thought
               </Button>
-              <p className="text-sm text-muted-foreground text-center">
-                This is not advice. It&apos;s a mirror of your worrying thinking.
+              <p className="text-sm text-center font-medium" style={{ color: "oklch(0.48 0.020 248)" }}>
+                This is a thinking tool, not therapy. Be honest with yourself.
               </p>
             </section>
           </FadeUp>
         )}
 
-        {loading && !analysis && (
+        {loading && (
           <FadeUp>
             <section
               data-ocid="thought_page.loading_state"
@@ -880,8 +1110,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                 border: "1px solid oklch(0.88 0.025 150 / 0.5)",
               }}
             >
-              <SectionLabel>Analyzing</SectionLabel>
-              <div className="flex items-center justify-center gap-3 mt-4">
+              <div className="flex items-center justify-center gap-3">
                 <span
                   className="h-2.5 w-2.5 rounded-full animate-pulse"
                   style={{ background: "oklch(0.46 0.12 152)" }}
@@ -901,8 +1130,39 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   }}
                 />
               </div>
-              <p className="mt-5 text-base text-muted-foreground">
-                We are working through your thought right now.
+
+              {/* Acknowledgement — appears once /api/acknowledge responds */}
+              <motion.p
+                key={acknowledgement}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="mt-6 text-lg font-semibold leading-snug max-w-xs mx-auto"
+                style={{ color: "oklch(0.22 0.018 248)" }}
+              >
+                {acknowledgement || "One moment…"}
+              </motion.p>
+
+              {/* Reassurance — grounding, appears with acknowledgement */}
+              {reassurance && (
+                <motion.p
+                  key={reassurance}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.15 }}
+                  className="mt-3 text-base leading-relaxed max-w-xs mx-auto"
+                  style={{ color: "oklch(0.38 0.022 248)" }}
+                >
+                  {reassurance}
+                </motion.p>
+              )}
+
+              {/* Transition — fixed, always shown */}
+              <p
+                className="mt-5 text-sm font-medium"
+                style={{ color: "oklch(0.36 0.10 152)" }}
+              >
+                Let&apos;s look at what your mind is doing with this.
               </p>
             </section>
           </FadeUp>
@@ -943,7 +1203,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
           </FadeUp>
         )}
 
-        {thoughtHistory.length > 0 && (
+        {thoughtHistory.length > 0 && !loading && (
           <section className="space-y-10">
             {thoughtHistory.length > 1 && (
               <ThoughtTimeline
@@ -993,100 +1253,115 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   dominantEmotion={dominantEmotion}
                 />
               )}
-              <div className="flex items-start gap-4">
-                <div className="mt-2">
-                  <span
-                    className="block h-3 w-3 rounded-full border-2"
-                    style={{
-                      borderColor: "oklch(0.48 0.08 310)",
-                      background: "oklch(0.977 0.008 88)",
-                    }}
-                  />
-                </div>
-                <motion.div
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                  className="flex-1 rounded-2xl p-6 space-y-5"
-                  style={{
-                    background:
-                      "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.962 0.025 310) 100%)",
-                    border: "1px solid oklch(0.86 0.035 310 / 0.55)",
-                    boxShadow: "0 8px 32px oklch(0.22 0.018 248 / 0.07)",
-                  }}
-                >
-                  <div>
-                    <p
-                      className="text-sm font-semibold uppercase tracking-widest mb-4"
-                      style={{ color: "oklch(0.39 0.09 310)" }}
-                    >
-                      What thought came next?
-                    </p>
-                    <textarea
-                      data-ocid="thought_page.next_thought.textarea"
-                      value={thought}
-                      onChange={(e) => {
-                        setThought(e.target.value);
-                        setSuggestionOverride(undefined);
-                      }}
-                      placeholder="Share the next thought in this situation…"
-                      className="mt-2 h-36 md:h-32 w-full rounded-xl p-4 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
+              {!loading && (
+                <div className="flex items-start gap-4">
+                  <div className="mt-2">
+                    <span
+                      className="block h-3 w-3 rounded-full border-2"
                       style={{
-                        background: "oklch(0.995 0.004 88 / 0.8)",
-                        border: "1px solid oklch(0.86 0.03 310 / 0.6)",
+                        borderColor: "oklch(0.48 0.08 310)",
+                        background: "oklch(0.977 0.008 88)",
                       }}
                     />
                   </div>
-                  {hint && (
-                    <p
-                      className="text-sm"
-                      style={{ color: "oklch(0.55 0.22 29)" }}
-                    >
-                      {hint}
-                    </p>
-                  )}
-                  {showSuggestionChips && (
-                    <div className="flex flex-wrap gap-2">
-                      {suggestionOptions.map((chip, idx) => (
-                        <button
-                          key={chip}
-                          type="button"
-                          data-ocid={`thought_page.suggestion.button.${idx + 1}`}
-                          onClick={() => handleSuggestionClick(chip)}
-                          className="rounded-full px-4 py-2 text-sm transition-colors"
-                          style={{
-                            background: "oklch(0.935 0.03 310 / 0.5)",
-                            border: "1px solid oklch(0.82 0.04 310 / 0.65)",
-                            color: "oklch(0.35 0.08 310)",
-                          }}
-                        >
-                          {chip}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <Button
-                    data-ocid="thought_page.next_thought.submit_button"
-                    onClick={() => processThought(suggestionOverride)}
-                    disabled={loading || thought.trim().length < 6}
-                    className="w-full rounded-full h-11 text-base font-semibold"
+                  <motion.div
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.2 }}
+                    className="flex-1 rounded-2xl p-6 space-y-5"
                     style={{
-                      boxShadow: "0 4px 20px oklch(0.46 0.12 152 / 0.25)",
+                      background:
+                        "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.962 0.025 310) 100%)",
+                      border: "1px solid oklch(0.86 0.035 310 / 0.55)",
+                      boxShadow: "0 8px 32px oklch(0.22 0.018 248 / 0.07)",
                     }}
                   >
-                    {loading ? "Analyzing…" : "Add this thought"}
-                  </Button>
-                  <button
-                    type="button"
-                    data-ocid="thought_page.new_thread_button"
-                    onClick={() => startNewThoughtThread()}
-                    className="w-full text-sm font-semibold transition-colors"
-                    style={{ color: "oklch(0.46 0.12 152)" }}
-                  >
-                    Start a new thought
-                  </button>
-                </motion.div>
-              </div>
+                    <div>
+                      <p
+                        className="text-sm font-semibold uppercase tracking-widest mb-3"
+                        style={{ color: "oklch(0.39 0.09 310)" }}
+                      >
+                        What came up next?
+                      </p>
+
+                      {/* Thread situation anchor — shows the user which situation they're exploring */}
+                      {analysis?.situation && (
+                        <div
+                          className="mb-4 rounded-xl px-4 py-3"
+                          style={{
+                            background: "oklch(0.96 0.012 310 / 0.5)",
+                            border: "1px solid oklch(0.84 0.03 310 / 0.5)",
+                          }}
+                        >
+                          <p
+                            className="text-xs font-semibold uppercase tracking-wider mb-1"
+                            style={{ color: "oklch(0.46 0.08 310)" }}
+                          >
+                            Still exploring
+                          </p>
+                          <p
+                            className="text-sm leading-relaxed"
+                            style={{ color: "oklch(0.30 0.06 310)" }}
+                          >
+                            &ldquo;{analysis.situation}&rdquo;
+                          </p>
+                        </div>
+                      )}
+
+                      <textarea
+                        data-ocid="thought_page.next_thought.textarea"
+                        value={thought}
+                        onChange={(e) => {
+                          setThought(e.target.value);
+                          if (guidanceMessage) setGuidanceMessage(null);
+                          if (validationMessage) setValidationMessage("");
+                        }}
+                        placeholder="What is your mind telling you now…"
+                        className="h-36 md:h-32 w-full rounded-xl p-4 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
+                        style={{
+                          background: "oklch(1 0 0)",
+                          border: "1.5px solid oklch(0.82 0.03 310 / 0.7)",
+                        }}
+                      />
+                    </div>
+                    {/* Inline feedback — guidance or hint from the last submission attempt */}
+                    {(guidanceMessage || hint) && (
+                      <div
+                        className="rounded-xl p-4 text-sm"
+                        style={{
+                          background: "oklch(0.93 0.025 150 / 0.5)",
+                          border: "1px solid oklch(0.72 0.06 150 / 0.6)",
+                          color: "oklch(0.28 0.08 152)",
+                        }}
+                      >
+                        {guidanceMessage || hint}
+                      </div>
+                    )}
+                    {/* Primary — same thread */}
+                    <Button
+                      data-ocid="thought_page.next_thought.submit_button"
+                      onClick={() => processThought()}
+                      disabled={thought.trim().length < 6}
+                      className="w-full rounded-full h-11 text-base font-semibold"
+                      style={{
+                        boxShadow: "0 4px 20px oklch(0.46 0.12 152 / 0.25)",
+                      }}
+                    >
+                      Add this thought
+                    </Button>
+                    {/* Secondary — different situation, new thread */}
+                    <button
+                      type="button"
+                      data-ocid="thought_page.different_situation_button"
+                      onClick={handleDifferentSituation}
+                      className="w-full text-sm font-semibold transition-colors"
+                      style={{ color: "oklch(0.46 0.12 152)" }}
+                    >
+                      This is a different situation →
+                    </button>
+                  </motion.div>
+                </div>
+              )}
             </div>
           </section>
         )}

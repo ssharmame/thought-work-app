@@ -776,29 +776,62 @@ const distortions = [
   "Comparison thinking"
 ]
 
-const patternExplanationMap: Record<string, string> = {
-  "Mind reading":
-    "Your mind seems to assume what others might be thinking.",
-  "Fortune telling":
-    "Your mind may be predicting a negative outcome before having enough information.",
-  "Self criticism":
-    "Your mind may be judging your performance very harshly.",
-  "Comparison thinking":
-    "Your mind may be comparing you to others in a way that makes you feel worse about yourself.",
-  "Catastrophizing":
-    "Your mind may be imagining the worst possible outcome.",
-  "All-or-nothing thinking":
-    "Your mind may be seeing things as total success or total failure.",
-  "Overgeneralization":
-    "Your mind may be drawing broad conclusions from one situation.",
-}
+// ------------------------------------
+// PATTERN DISPLAY MAP
+// Used by frontend to show human-friendly label
+// and a fixed reflection question per distortion.
+// Clinical label is stored internally only.
+// ------------------------------------
 
-const normalizedPatternExplanationMap = Object.fromEntries(
-  Object.entries(patternExplanationMap).map(([key, value]) => [
-    key.toLowerCase(),
-    value,
-  ])
-)
+export const PATTERN_DISPLAY: Record<string, {
+  label: string
+  question: string
+}> = {
+  "fortune telling": {
+    label: "Predicting before knowing",
+    question: "What do you actually know for certain right now?",
+  },
+  "mind reading": {
+    label: "Assuming what others think",
+    question: "What evidence do you have for what they're thinking?",
+  },
+  "catastrophizing": {
+    label: "Imagining the worst case",
+    question: "What's the most realistic outcome — not the worst?",
+  },
+  "self criticism": {
+    label: "Being hard on yourself",
+    question: "What would you tell a close friend in this exact situation?",
+  },
+  "overgeneralization": {
+    label: "One moment becoming always",
+    question: "Is this always true, or is this one difficult moment?",
+  },
+  "comparison thinking": {
+    label: "Measuring yourself against others",
+    question: "Are you seeing their full picture or just the surface?",
+  },
+  "all-or-nothing thinking": {
+    label: "Seeing only two extremes",
+    question: "What does the middle ground look like here?",
+  },
+  "emotional reasoning": {
+    label: "Feeling it means it's true",
+    question: "Is this a fact about the situation or a feeling about it?",
+  },
+  "personalization": {
+    label: "Taking it personally",
+    question: "What other factors outside you might have caused this?",
+  },
+  "should statements": {
+    label: "Holding yourself to rigid rules",
+    question: "Where did this rule come from — and is it fair to you?",
+  },
+  "labeling": {
+    label: "Defining yourself by one moment",
+    question: "Is this one moment or a permanent truth about you?",
+  },
+}
 
 const distortionProgression: Record<string, string[]> = {
   "Fortune telling": ["Mind reading", "Self criticism"],
@@ -828,83 +861,31 @@ export function getAllowedDistortions(pattern: string | null) {
   return progression
 }
 
-export function detectPatternFromText(text: string): string | null {
-  const t = text.toLowerCase()
-  if (t.includes("they think") || t.includes("they must") || t.includes("they probably")) {
-    return "Mind reading"
-  }
-  if (t.includes("going to") || t.includes("will") || t.includes("definitely")) {
-    return "Fortune telling"
-  }
-  if (
-    t.includes("i probably didn't") ||
-    t.includes("i messed up") ||
-    t.includes("i didn't do well") ||
-    t.includes("not good enough")
-  ) {
-    return "Self criticism"
-  }
-  if (t.includes("maybe i'm not")) {
-    return "Self criticism"
-  }
-  if (
-    t.includes("better than me") ||
-    t.includes("more qualified") ||
-    t.includes("more impressive") ||
-    t.includes("others are better")
-  ) {
-    return "Comparison thinking"
-  }
-  if (t.includes("i always")) {
-    return "Overgeneralization"
-  }
+export function detectPatternFromText(_text: string): string | null {
+  // Pattern detection is handled entirely by AI prompts.
+  // String matching has been removed to avoid overriding
+  // nuanced AI classification with brittle keyword rules.
   return null
 }
 
-export function detectInsight(text: string): boolean {
-  const t = text.toLowerCase()
-
-  return (
-    t.includes("maybe i'm") ||
-    t.includes("maybe i am") ||
-    t.includes("i might be") ||
-    t.includes("perhaps i'm") ||
-    t.includes("perhaps i am") ||
-    t.includes("i could be") ||
-    t.includes("i may be") ||
-    t.includes("overthinking") ||
-    t.includes("jumping to conclusions")
-  )
+export function detectInsight(_text: string): boolean {
+  // Insight detection is handled entirely by AI prompts.
+  // String matching has been removed to avoid false positives
+  // from brittle keyword rules.
+  return false
 }
 
-export function detectCoreBelief(text: string): string | null {
-  const t = text.toLowerCase()
-
-  if (t.includes("not good enough")) return "I am not good enough"
-
-  if (t.includes("i always fail") || t.includes("i never succeed"))
-    return "I will fail"
-
-  if (t.includes("people don't like me"))
-    return "People will reject me"
-
-  if (t.includes("i'm not capable") || t.includes("i can't do this"))
-    return "I am not capable"
-
+export function detectCoreBelief(_text: string): string | null {
+  // Core belief detection is handled entirely by AI prompts.
+  // String matching has been removed to avoid oversimplified
+  // keyword-based classification.
   return null
 }
 
 function isInvalidSuggestionText(suggestion: string): boolean {
-  const normalized = suggestion.toLowerCase().trim()
-  if (!normalized) return true
-
-  const advicePattern = /\b(should|must|need to|have to|try to|go and)\b/
-  const reassurancePattern = /\b(don't worry|it'?s okay|it will be fine|you'll be fine|everything will be okay)\b/
-
-  if (advicePattern.test(normalized)) return true
-  if (reassurancePattern.test(normalized)) return true
-
-  return false
+  // Filtering is handled by AI prompt instructions.
+  // Only remove empty strings here.
+  return !suggestion.toLowerCase().trim()
 }
 
 export type ThoughtContext = {
@@ -941,14 +922,13 @@ ${contextBlock}
 Scope: analyze ONLY the current thought.
 Do NOT infer deeper beliefs or long-term patterns.
 
-Given a situation, current thought, and emotion, identify the cognitive distortion that best matches my interpretation.
+You are identifying the thinking pattern behind this interpretation
+and writing a personal message that helps the person notice it.
 
 Situation:
 """
 ${situation}
 """
-
-SITUATION must describe something a camera could record.
 
 Interpretation:
 """
@@ -958,38 +938,126 @@ ${interpretation}
 Emotion:
 ${emotion}
 
-Choose ONLY from this list:
+STEP 1 — Choose the pattern
 
+Choose ONLY from this list:
 ${distortions.join("\n")}
 
-You must choose ONLY from the provided distortion list.
-Do not invent new distortion names.
+You must choose ONLY from this list.
+Do not invent new names.
+If none apply, return null for pattern and patternMessage.
 
-If none apply return null.
+STEP 2 — Write a contextual patternMessage
 
-Return ONLY JSON. Do not include any explanation text outside the JSON.
+Write 1–2 sentences that help the person notice this pattern
+in their own specific thought.
+
+STRICT RULES for patternMessage:
+- Reference something specific from their situation or
+  interpretation — a timeframe, a person, an event,
+  a word they actually used.
+- Do NOT write a generic description of the pattern.
+- Do NOT use clinical or textbook language.
+- Do NOT start with "Your mind" every time — vary the opening.
+- If your message could apply to any person in any situation,
+  rewrite it until it could not.
+- Write in second person ("you", "your") — warm, not cold.
+- Maximum 2 sentences. Keep it short.
+
+TONE GUIDE — use the style that matches the pattern:
+
+Fortune telling
+Name what the mind jumped to before the facts arrived.
+Focus on the gap between what happened and what was concluded.
+Example: "Three days of silence and you've already written
+the ending — but silence isn't the same as a no."
+
+Mind reading
+Name what they're assuming about someone else's internal state.
+Focus on the assumption being treated as fact.
+Example: "You're reading their expression as a verdict —
+but you can't know what was happening in their mind."
+
+Self criticism
+Separate the external event from the self-judgment.
+Focus on the leap from 'this didn't go well' to
+'I am not good enough.'
+Example: "Your mind has taken one difficult moment
+and turned it into a verdict about your worth —
+those are two very different things."
+
+Overgeneralization
+Name the leap from one specific moment to a permanent truth.
+Focus on words like always, never, everyone, no one.
+Example: "Three months of trying hasn't worked yet —
+but your mind has turned 'not yet' into 'never.'"
+
+Catastrophizing
+Name the jump from uncertain to worst-case outcome.
+Focus on how many steps the mind skipped to get there.
+Example: "Your mind went from uncertainty straight to
+the worst possible ending — skipping everything in between."
+
+Comparison thinking
+Name what they're measuring themselves against and why
+the comparison is incomplete or unfair.
+Focus on the fact they're seeing someone else's surface,
+not their full picture.
+Example: "You're measuring your inside against someone
+else's outside — that comparison will always feel unfair."
+
+All-or-nothing thinking
+Name the binary the mind created — the two extremes
+with nothing in between.
+Focus on what the middle ground actually looks like.
+Example: "Your mind has made this either a complete
+success or a total failure — with no space for
+anything in between."
+
+Emotional reasoning
+Name the emotion being used as evidence for a fact.
+Focus on the difference between feeling something is true
+and it actually being true.
+Example: "Because it feels certain, your mind is treating
+it as certain — but a feeling isn't the same as a fact."
+
+Personalization
+Name the external event the person has taken full
+responsibility for.
+Focus on the other factors outside them that also played a part.
+Example: "Your mind has made you the single cause of
+something that had many moving parts beyond your control."
+
+Should statements
+Name the specific rigid rule the mind is applying.
+Focus on the standard being held and how little room it leaves.
+Example: "There's a rule running in your mind about how
+this should have gone — and it leaves no room for
+things being genuinely hard."
+
+Labeling
+Name the permanent label being attached to a temporary event.
+Focus on the difference between one moment and a fixed identity.
+Example: "One difficult experience and your mind has
+attached a label — as if a single moment defines
+everything you are."
+
+Return ONLY JSON. No explanation outside the JSON.
 
 {
- "stage": "pattern",
- "pattern": null,
- "explanation": null
+  "stage": "pattern",
+  "pattern": null,
+  "patternMessage": null
 }
 `
 
-  const result = await runPrompt<PatternStage>(prompt)
-  const aiPattern = result.pattern?.trim() || null
-  const rulePattern = detectPatternFromText(interpretation)
-  const finalPattern = rulePattern || aiPattern
-  const normalizedKey = finalPattern?.trim().toLowerCase() ?? ""
-  const mappedExplanation =
-    normalizedKey && normalizedPatternExplanationMap[normalizedKey]
-      ? normalizedPatternExplanationMap[normalizedKey]
-      : result.explanation
+  const result = await runPrompt<PatternStage & { patternMessage?: string }>(prompt)
+  const finalPattern = result.pattern?.trim() || null
 
   return {
-    ...result,
+    stage: "pattern",
     pattern: finalPattern,
-    explanation: mappedExplanation,
+    explanation: result.patternMessage?.trim() || null,
   }
 }
 
@@ -1070,9 +1138,15 @@ ${pattern}
 
 Balanced perspective guidelines:
 
-1. Acknowledge the feeling or uncertainty.
-2. Restate the situation briefly.
-3. Offer a calmer or alternative interpretation.
+1. Acknowledge the feeling or uncertainty — one sentence.
+2. Offer a calmer or more realistic alternative interpretation — one sentence.
+3. If there is a specific grounding fact that makes the fear less certain
+   — for example, if someone is waiting for interview results, note that
+   a few days is within normal response time — add it as a third sentence.
+   Only include this if it is factually grounded in the situation.
+   Do not invent facts.
+
+Total: 2–3 short sentences maximum.
 
 Write the response as if I am thinking this to myself.
 
@@ -1108,42 +1182,7 @@ export async function generateNextThoughtStage(
     context.previousThoughts ?? [],
     previousPatterns
   )
-  const allowed = getAllowedDistortions(context.pattern ?? null)
-  const allowedList = allowed.length ? allowed : distortions
-  const lastThreePatterns = previousPatterns.slice(-3)
-  const stabilized =
-    historyLength >= 5 &&
-    lastThreePatterns.length === 3 &&
-    lastThreePatterns.every(
-      (value, _, arr) => value && value === arr[0]
-    )
-
-  if (stabilized) {
-    return { stage: "next_thought", suggestions: [] }
-  }
-
-  if (detectInsight(interpretation)) {
-    return { stage: "next_thought", suggestions: [] }
-  }
-
-  const historyForBelief = context.thoughtHistory ?? []
-  const beliefSource = [...historyForBelief.slice(-3), interpretation].join(" ")
-  const belief = historyForBelief.length >= 2
-    ? detectCoreBelief(beliefSource)
-    : null
-  if (belief) {
-    return {
-      stage: "next_thought",
-      suggestions: [],
-      coreBelief: belief,
-    }
-  }
-
   const previousThoughts = context.previousThoughts ?? []
-
-// if (previousThoughts.length < 1) {
-//   return { stage: "next_thought", suggestions: [] }
-// }
 
   const prompt = `
 ${THREAD_CONTEXT_BLOCK}
@@ -1152,7 +1191,7 @@ ${FIRST_PERSON_RULE}
 ${contextBlock}
 Scope: analyze patterns across multiple thoughts within the same situation.
 
-You are generating possible directions the mind might go next if rumination continues.
+You are helping me explore my thinking more deeply — not spiral further into negativity.
 
 Context:
 
@@ -1181,41 +1220,54 @@ ${previousThoughts.length ? previousThoughts.join("\n") : "- none -"}
 
 Your task:
 
-Generate 4 possible internal thought directions that could appear next if rumination continues.
+Generate 3 suggestions that help me understand my thinking more clearly.
+Each suggestion must do exactly ONE of these three things:
 
-Rules:
-1. The thoughts must remain tied to the same situation.
-2. They should follow the same cognitive distortion pattern.
-3. They must feel like internal negative interpretations (automatic thoughts).
-4. They must NOT be reassurance or balanced thoughts.
-5. Do not repeat any previous thoughts.
-6. Do NOT introduce new life events or new situations.
-7. Do NOT escalate into identity-level beliefs like "I am a failure."
-8. Suggestions may be short statements or internal questions.
-9. These should feel like possible directions the mind could go, not definitive conclusions.
+TYPE A — Surface the deeper belief underneath the pattern.
+Not more examples of the same fear — but the root belief driving it.
+Example: "Maybe I'm afraid this means I'm not good enough."
+Example: "Maybe I'm scared that failure here says something permanent about me."
 
-The next automatic thoughts should reflect one of these thinking patterns:
-${allowedList.join("\n")}
+TYPE B — Introduce a genuine alternative explanation for the situation.
+A realistic possibility the mind hasn't considered.
+Example: "Maybe they're still reviewing all candidates."
+Example: "Maybe the delay is about their process, not my performance."
 
-Bad examples:
-"Maybe I'm overthinking this"
-"I'm unsure what this means"
-"This might not be true"
+TYPE C — Redirect toward something I can actually control or do.
+A grounded, agency-restoring thought — not advice, just a direction.
+Example: "Maybe I could follow up after a few more days."
+Example: "Maybe I could ask for feedback regardless of the outcome."
 
-Good examples:
+STRICT RULES:
+1. Generate exactly one suggestion of each type — one A, one B, one C.
+2. NEVER generate thoughts that assume what others think negatively about me.
+3. NEVER generate thoughts that predict failure or rejection.
+4. NEVER extend or deepen the current negative pattern.
+5. NEVER give advice using "should" or "must".
+6. NEVER offer reassurance like "it will be fine".
+7. Do not repeat any previous thoughts.
+8. Write in first person as an internal thought.
+9. Keep each suggestion to one short sentence.
+
+BAD examples — never generate these:
 "Maybe they didn't think my answers were strong enough."
 "Maybe another candidate had more experience."
 "Maybe I didn't explain my work clearly."
-"Maybe they didn't see the skills they wanted."
+"Maybe they believe someone else is more qualified."
+"Maybe I'm just not cut out for this."
+
+GOOD examples — generate these instead:
+"Maybe I'm scared this says something about my worth."
+"Maybe they're still in the middle of their process."
+"Maybe I could reach out after a few more days."
 
 Return JSON:
 {
 "stage": "next_thought",
 "suggestions": [
-  "thought1",
-  "thought2",
-  "thought3",
-  "thought4"
+  "TYPE A thought here",
+  "TYPE B thought here",
+  "TYPE C thought here"
 ]
 }
 `
@@ -1281,6 +1333,103 @@ if and only if the suggestions correctly represent automatic thoughts under the 
   return runPrompt<{ valid: boolean }>(prompt)
 }
 
+// ------------------------------------
+// ACKNOWLEDGEMENT
+// Fast pre-call — runs in parallel with main pipeline.
+// Returns a personal acknowledgement and grounding
+// reassurance based on the user's actual thought.
+// ------------------------------------
+
+export type AcknowledgementOutput = {
+  acknowledgement: string
+  reassurance: string
+}
+
+export async function generateAcknowledgement(
+  thought: string
+): Promise<AcknowledgementOutput> {
+  const prompt = `
+You are reading someone's thought. Write two things.
+
+ACKNOWLEDGEMENT
+One warm sentence. Maximum 15 words.
+Use a specific word or detail from their thought.
+Do not analyse. Do not advise. Do not label.
+Do not start with "I" or "That".
+
+REASSURANCE
+One short grounding sentence. Maximum 12 words.
+Anchor them to what is stable or true right now.
+Not a promise about the future.
+Not "everything will be okay."
+Something that is factually true in this moment.
+
+Examples:
+
+Thought: "I think I'm going to be fired"
+Acknowledgement: "Waiting for news like that is one of the worst feelings."
+Reassurance: "Right now, in this moment, you are safe."
+
+Thought: "I'm running a startup with no funding"
+Acknowledgement: "Building something without a safety net takes real courage — and real worry."
+Reassurance: "The startup is still running. You are still here."
+
+Thought: "My dad didn't come to my graduation"
+Acknowledgement: "That kind of absence on an important day stays with you."
+Reassurance: "What happened was real. So is the fact that you got through it."
+
+Thought: "I said something awkward and can't stop thinking about it"
+Acknowledgement: "The mind replays those moments far longer than anyone else remembers them."
+Reassurance: "The moment has passed. You are okay right now."
+
+Thought: "I have been unemployed for 3 months"
+Acknowledgement: "Three months of uncertainty takes a real toll on a person."
+Reassurance: "You are still here. You are still trying."
+
+Thought: "Maybe people only tolerate me, they don't actually like me"
+Acknowledgement: "Wondering whether people genuinely like you is a lonely place to be."
+Reassurance: "That thought is not the same as it being true."
+
+Return JSON only:
+{
+  "acknowledgement": "",
+  "reassurance": ""
+}
+
+Thought:
+"${thought.trim()}"
+`
+
+  const response = await getClient().chat.completions.create({
+    model: MODEL,
+    temperature: 0.4,
+    max_tokens: 80,
+    messages: [{ role: "user", content: prompt }],
+  })
+
+  const text = response.choices?.[0]?.message?.content?.trim() ?? ""
+
+  try {
+    const start = text.indexOf("{")
+    const end = text.lastIndexOf("}")
+    if (start === -1 || end === -1) throw new Error("no json")
+    const parsed = JSON.parse(text.slice(start, end + 1))
+    return {
+      acknowledgement: typeof parsed.acknowledgement === "string"
+        ? parsed.acknowledgement.trim()
+        : "",
+      reassurance: typeof parsed.reassurance === "string"
+        ? parsed.reassurance.trim()
+        : "Right now, in this moment, you are okay.",
+    }
+  } catch {
+    return {
+      acknowledgement: "",
+      reassurance: "Right now, in this moment, you are okay.",
+    }
+  }
+}
+
 export type ReflectionCompletionInput = {
   situation: string
   story: string
@@ -1339,4 +1488,73 @@ Return JSON only.
 
   const response = await runPrompt<{ decision: "continue" | "complete" }>(prompt)
   return response.decision || "continue"
+}
+
+// ------------------------------------
+// REFLECTION CARD
+// ------------------------------------
+
+export type ReflectionCardInput = {
+  situation: string
+  story: string
+  emotion: string
+  pattern: string | null
+}
+
+export type ReflectionCardOutput = {
+  question: string
+}
+
+export async function generateReflectionCard(
+  input: ReflectionCardInput
+): Promise<ReflectionCardOutput> {
+  const prompt = `
+${FIRST_PERSON_RULE}
+
+You are a thoughtful guide helping someone reflect on their own thinking.
+
+The person has just seen their thought broken down into:
+- What actually happened (situation)
+- What their mind assumed it meant (story)
+- How it made them feel (emotion)
+- The thinking pattern involved (pattern)
+
+Your job is to ask ONE short, open question that helps them
+arrive at their own balanced perspective — without telling
+them what to think.
+
+The question should:
+• Be warm and gentle — not clinical
+• Help them see the situation from a slightly wider angle
+• Be answerable in 1–2 sentences
+• Feel like something a thoughtful friend would ask
+• NOT ask about the future or make predictions
+• NOT contain the word "really"
+• NOT be a yes/no question
+
+Situation:
+"${input.situation}"
+
+Their interpretation:
+"${input.story}"
+
+Emotion:
+${input.emotion}
+
+Thinking pattern:
+${input.pattern ?? "not identified"}
+
+Examples of good questions:
+"What's one thing you know for certain right now?"
+"What would you tell a close friend who came to you with this same thought?"
+"Is there any part of this situation that might have a different explanation?"
+"What evidence do you have that supports this interpretation — and what might challenge it?"
+
+Return JSON only:
+{
+  "question": ""
+}
+`
+
+  return runPrompt<ReflectionCardOutput>(prompt)
 }
