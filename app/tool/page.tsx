@@ -159,7 +159,7 @@ const buildAnalysisCards = (
   // Use contextual AI message (patternExplanation) directly —
   // no fallback to generic patternToInsight string matching
   const patternValue = analysis.patternExplanation?.trim() ?? "";
-  return [
+  const cards: (AnalysisCard | null)[] = [
     includeSituation
       ? {
           key: "fact",
@@ -196,7 +196,8 @@ const buildAnalysisCards = (
       value: analysis.balancedThought ?? "",
       style: INSIGHT_CARD_STYLES.balanced,
     },
-  ].filter((card): card is AnalysisCard => card !== null);
+  ];
+  return cards.filter((card): card is AnalysisCard => card !== null);
 };
 
 type InsightCardProps = {
@@ -390,7 +391,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 type InsightSummaryProps = {
   patternSummaryText: string;
   emotionSummaryText: string;
-  beliefDisplay: string;
+  beliefDisplay: string | null;
   dominantPattern: string | null;
   dominantEmotion: string | null;
 };
