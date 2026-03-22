@@ -16,7 +16,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "ThoughtLens.ai",
+  title: "Thoughtlensai",
   description: "Understand the story your mind is telling.",
 };
 

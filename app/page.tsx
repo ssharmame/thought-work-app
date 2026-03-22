@@ -76,7 +76,7 @@ function Navbar() {
     <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-border">
       <nav className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
         <span className="font-display text-xl font-semibold text-foreground tracking-tight">
-          ThoughtLens.ai
+          Thoughtlensai
         </span>
 
         <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
@@ -180,7 +180,7 @@ function Hero() {
         <FadeUp delay={0.2}>
           <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-lg mx-auto leading-relaxed mb-11 text-balance">
             Most people can&apos;t tell the difference between a fact and a
-            story their mind creates. ThoughtLens.ai helps you see the difference.
+            story their mind creates. Thoughtlensai helps you see the difference.
           </p>
         </FadeUp>
 
@@ -458,7 +458,7 @@ function ProductSection() {
             clarity tool.
           </h2>
           <p className="text-lg lg:text-xl text-muted-foreground max-w-xl leading-relaxed mb-14">
-            Write a thought. ThoughtLens.ai breaks it into its components so you
+            Write a thought. Thoughtlensai breaks it into its components so you
             can finally see what&apos;s happening inside your mind.
           </p>
         </FadeUp>
@@ -496,7 +496,7 @@ function ProductSection() {
 
         <FadeUp>
           <p className="text-muted-foreground text-base lg:text-lg leading-relaxed">
-            Over time, ThoughtLens.ai detects your{" "}
+            Over time, Thoughtlensai detects your{" "}
             <strong className="text-foreground">recurring triggers</strong>,{" "}
             <strong className="text-foreground">thinking patterns</strong>, and
             possible <strong className="text-foreground">core beliefs</strong>.
@@ -569,7 +569,7 @@ function HowItWorksSection() {
             </span>
           </h2>
           <p className="text-lg lg:text-xl text-muted-foreground max-w-xl leading-relaxed mb-14">
-            Write any thought. ThoughtLens.ai walks you through a structured
+            Write any thought. Thoughtlensai walks you through a structured
             analysis inspired by Cognitive Behavioral Therapy.
           </p>
         </FadeUp>
@@ -707,7 +707,7 @@ function HowItWorksSection() {
                 className="text-xs font-medium"
                 style={{ color: "oklch(0.40 0.10 152)" }}
               >
-                Analyzed with ThoughtLens.ai · CBT-inspired framework
+                Analyzed with Thoughtlensai · CBT-inspired framework
               </p>
             </div>
           </div>
@@ -772,7 +772,7 @@ function DifferentSection() {
             </div>
           </FadeUp>
 
-        {/* ThoughtLens.ai */}
+        {/* Thoughtlensai */}
           <FadeUp delay={0.1}>
             <div
               className="rounded-2xl p-8 border h-full"
@@ -793,7 +793,7 @@ function DifferentSection() {
                     style={{ color: "oklch(0.46 0.12 152)" }}
                   />
                 </div>
-          <h3 className="font-semibold text-foreground">ThoughtLens.ai</h3>
+          <h3 className="font-semibold text-foreground">Thoughtlensai</h3>
               </div>
               <ul className="space-y-3.5">
                 {[
@@ -902,7 +902,7 @@ function VisionSection() {
                 profile.
               </h2>
               <p className="text-base lg:text-lg text-muted-foreground leading-relaxed mb-5">
-                ThoughtLens.ai is evolving into a full cognitive insight platform.
+                Thoughtlensai is evolving into a full cognitive insight platform.
                 Over time, it builds a deep understanding of how your unique
                 mind works — your patterns, triggers, and the beliefs that shape
                 your experience.
@@ -910,7 +910,7 @@ function VisionSection() {
               <p className="text-base lg:text-lg text-muted-foreground leading-relaxed">
                 Repeated patterns often point to something much older — an attachment wound,
                 a belief formed in childhood, a fear that has been quietly running in the
-                background for years. ThoughtLens.ai is designed to help you begin
+                background for years. Thoughtlensai is designed to help you begin
                 seeing those layers, not just the surface thought.
               </p>
             </FadeUp>
@@ -968,7 +968,7 @@ function CbtSection() {
           </h2>
           <p className="text-lg lg:text-xl text-muted-foreground max-w-xl leading-relaxed mb-14">
             CBT is one of the most researched and widely used approaches in psychology.
-            ThoughtLens.ai applies its core principles to help you slow down automatic thinking.
+            Thoughtlensai applies its core principles to help you slow down automatic thinking.
           </p>
         </FadeUp>
 
@@ -992,7 +992,7 @@ function CbtSection() {
             {
               step: "4",
               title: "Notice what repeats",
-              desc: "The deepest insight comes from repeated use. Over time, ThoughtLens.ai surfaces which patterns, emotions, and core beliefs keep showing up — often across very different situations.",
+              desc: "The deepest insight comes from repeated use. Over time, Thoughtlensai surfaces which patterns, emotions, and core beliefs keep showing up — often across very different situations.",
             },
           ].map((item, i) => (
             <FadeUp key={item.step} delay={i * 0.08}>
@@ -1059,7 +1059,7 @@ function CbtSection() {
             }}
           >
             <p className="text-sm lg:text-base leading-relaxed" style={{ color: "oklch(0.38 0.08 248)" }}>
-              <strong className="text-foreground">Important:</strong> ThoughtLens.ai is a self-reflection tool inspired by CBT principles.
+              <strong className="text-foreground">Important:</strong> Thoughtlensai is a self-reflection tool inspired by CBT principles.
               It is not a diagnostic tool, and it is not a substitute for therapy or clinical care.
               If you are experiencing significant distress, please speak with a qualified mental health professional.
             </p>
@@ -1110,7 +1110,7 @@ function AboutSection() {
               />
               <div className="pt-1">
                 <p className="font-semibold text-foreground text-lg">Sunil Sharma</p>
-                <p className="text-sm text-muted-foreground mb-2">Builder, ThoughtLens.ai</p>
+                <p className="text-sm text-muted-foreground mb-2">Builder, Thoughtlensai</p>
                 <a
                   href="https://www.linkedin.com/in/sunil-sharma-21306255/"
                   target="_blank"
@@ -1133,7 +1133,7 @@ function AboutSection() {
                 and what my mind decided it meant.
               </p>
               <p>
-                I started building ThoughtLens.ai because I wanted a tool that would help me
+                I started building Thoughtlensai because I wanted a tool that would help me
                 slow down that process. Not a journal, not a chatbot — something structured that
                 could show me the mechanics of my own automatic thoughts.
               </p>
@@ -1181,7 +1181,7 @@ function ContactSection() {
           >
             <p className="text-sm text-muted-foreground leading-relaxed mb-6">
               Whether you have feedback on the tool, a question about the framework, or you&apos;re
-              a therapist or mental health professional curious about ThoughtLens.ai — reach out directly.
+              a therapist or mental health professional curious about Thoughtlensai — reach out directly.
             </p>
             <a
               href="mailto:hello@thoughtlensai.com"
@@ -1251,16 +1251,16 @@ function Footer() {
     <footer className="border-t border-border bg-background">
       <div className="max-w-5xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
         <span className="font-display text-lg font-semibold text-foreground">
-          ThoughtLens.ai
+          Thoughtlensai
         </span>
         <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4 text-sm text-muted-foreground">
-          <span>&copy; {year} ThoughtLens.ai</span>
+          <span>&copy; {year} Thoughtlensai</span>
           <span className="hidden sm:inline opacity-30">&middot;</span>
           <a href="#framework" className="hover:text-foreground transition-colors">Framework</a>
           <span className="hidden sm:inline opacity-30">&middot;</span>
           <a href="#about" className="hover:text-foreground transition-colors">About</a>
           <span className="hidden sm:inline opacity-30">&middot;</span>
-          <a href="mailto:hello@thoughtlens.ai" className="hover:text-foreground transition-colors">Contact</a>
+          <a href="mailto:hello@Thoughtlensai" className="hover:text-foreground transition-colors">Contact</a>
           <span className="hidden sm:inline opacity-30">&middot;</span>
           <span className="text-xs opacity-60">This is a thinking tool, not therapy.</span>
         </div>

@@ -1149,7 +1149,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
             <div className="w-20" />
           )}
           <span className="font-display text-xl font-semibold text-foreground tracking-tight">
-            ThoughtLens.ai
+            Thoughtlensai
           </span>
           <div className="w-20" />
         </nav>
