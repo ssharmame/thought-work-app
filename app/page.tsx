@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowRight,
@@ -53,9 +54,15 @@ function FadeUp({
 // ── Section label ─────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-      {children}
-    </p>
+    <div className="flex items-center gap-2 mb-4">
+      <span
+        className="block w-1.5 h-1.5 rounded-full flex-shrink-0"
+        style={{ background: "oklch(0.46 0.12 152)" }}
+      />
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground">
+        {children}
+      </p>
+    </div>
   );
 }
 
@@ -76,29 +83,40 @@ function Navbar() {
           <button
             type="button"
             onClick={() => scrollTo("how-it-works")}
-            className="hover:text-foreground transition-colors"
+            className="hover:text-foreground transition-colors cursor-pointer"
           >
             How it works
           </button>
           <button
             type="button"
-            onClick={() => scrollTo("different")}
-            className="hover:text-foreground transition-colors"
+            onClick={() => scrollTo("framework")}
+            className="hover:text-foreground transition-colors cursor-pointer"
           >
-            Why different
+            Framework
           </button>
           <button
             type="button"
-            onClick={() => scrollTo("vision")}
-            className="hover:text-foreground transition-colors"
+            onClick={() => scrollTo("about")}
+            className="hover:text-foreground transition-colors cursor-pointer"
           >
-            Vision
+            About
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollTo("contact")}
+            className="hover:text-foreground transition-colors cursor-pointer"
+          >
+            Contact
           </button>
         </div>
 
         <Link
           href="/tool"
-          className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:bg-primary/90"
+          className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold tracking-wide transition"
+          style={{
+            background: "oklch(0.13 0.012 248)",
+            color: "oklch(0.97 0.004 88)",
+          }}
         >
           Try the tool
         </Link>
@@ -167,11 +185,13 @@ function Hero() {
         </FadeUp>
 
         <FadeUp delay={0.3}>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             href="/tool"
-            className="inline-flex items-center justify-center rounded-full bg-primary px-9 py-3 text-base font-semibold uppercase tracking-[0.15em] text-primary-foreground transition hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-full w-full sm:w-auto px-8 py-3 text-base font-semibold tracking-wide transition"
             style={{
+              background: "oklch(0.13 0.012 248)",
+              color: "oklch(0.97 0.004 88)",
               boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.25), 0 1px 4px oklch(0.13 0.012 248 / 0.12)",
             }}
           >
@@ -182,7 +202,12 @@ function Hero() {
             type="button"
             data-ocid="hero.link"
             onClick={() => scrollTo("how-it-works")}
-            className="text-muted-foreground hover:text-foreground text-base underline underline-offset-4 transition-colors"
+            className="inline-flex items-center justify-center rounded-full w-full sm:w-auto px-8 py-3 text-base font-semibold tracking-wide transition"
+            style={{
+              border: "1.5px solid oklch(0.78 0.025 88)",
+              color: "oklch(0.42 0.025 248)",
+              background: "transparent",
+            }}
           >
             See how it works
           </button>
@@ -191,7 +216,7 @@ function Hero() {
 
         {/* --- Premium product preview card --- */}
         <FadeUp delay={0.45}>
-          <div className="mt-20 relative mx-auto max-w-[480px]">
+          <div className="mt-12 relative mx-auto max-w-[480px]">
             {/* Ambient glow behind the card */}
             <div
               aria-hidden
@@ -242,7 +267,7 @@ function Hero() {
                     />
                   </div>
                   <div className="text-left">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <p className="text-[11px] font-semibold tracking-wide text-muted-foreground">
                       Your thought
                     </p>
                     <p className="text-foreground text-sm leading-snug font-medium mt-0.5">
@@ -291,7 +316,7 @@ function Hero() {
                         style={{ background: item.dot }}
                       />
                       <p
-                        className="text-[10px] font-bold uppercase tracking-wider"
+                        className="text-[10px] font-semibold tracking-wide"
                         style={{ color: item.dot }}
                       >
                         {item.label}
@@ -581,7 +606,7 @@ function HowItWorksSection() {
                 </div>
                 <div>
                   <p
-                    className="text-[11px] font-bold uppercase tracking-wider mb-1.5"
+                    className="text-[11px] font-semibold tracking-wide mb-1.5"
                     style={{ color: "oklch(0.55 0.05 248)" }}
                   >
                     Your thought
@@ -614,7 +639,7 @@ function HowItWorksSection() {
                       style={{ background: `${phase.phaseColor} / 0.2` }}
                     />
                     <span
-                      className="text-[10px] font-bold uppercase tracking-widest"
+                      className="text-[10px] font-semibold tracking-wide"
                       style={{ color: phase.phaseColor }}
                     >
                       {phase.phase}
@@ -645,7 +670,7 @@ function HowItWorksSection() {
                         }}
                       >
                         <span
-                          className="text-[11px] font-bold uppercase tracking-wider w-32 flex-shrink-0 pt-0.5"
+                          className="text-[11px] font-semibold tracking-wide w-32 flex-shrink-0 pt-0.5"
                           style={{ color: phase.phaseColor }}
                         >
                           {row.label}
@@ -802,7 +827,7 @@ function DifferentSection() {
               boxShadow: "0 2px 16px oklch(0.22 0.018 248 / 0.04)",
             }}
           >
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-6">
+            <p className="text-[11px] font-semibold tracking-wide text-muted-foreground mb-6">
               The insight chain
             </p>
             <div className="flex flex-wrap items-center gap-3">
@@ -847,7 +872,8 @@ function DifferentSection() {
 const visionPills = [
   { label: "Thinking Pattern Reports", icon: TrendingUp },
   { label: "Emotional Trigger Detection", icon: Sparkles },
-  { label: "Belief Discovery", icon: Layers },
+  { label: "Core & Limiting Belief Discovery", icon: Layers },
+  { label: "Attachment & Childhood Pattern Recognition", icon: Heart },
   { label: "Personal Thinking Profile", icon: User },
 ];
 
@@ -875,11 +901,17 @@ function VisionSection() {
                 </span>{" "}
                 profile.
               </h2>
-              <p className="text-base lg:text-lg text-muted-foreground leading-relaxed">
+              <p className="text-base lg:text-lg text-muted-foreground leading-relaxed mb-5">
                 ThoughtLens.ai is evolving into a full cognitive insight platform.
                 Over time, it builds a deep understanding of how your unique
                 mind works — your patterns, triggers, and the beliefs that shape
                 your experience.
+              </p>
+              <p className="text-base lg:text-lg text-muted-foreground leading-relaxed">
+                Repeated patterns often point to something much older — an attachment wound,
+                a belief formed in childhood, a fear that has been quietly running in the
+                background for years. ThoughtLens.ai is designed to help you begin
+                seeing those layers, not just the surface thought.
               </p>
             </FadeUp>
           </div>
@@ -916,6 +948,256 @@ function VisionSection() {
   );
 }
 
+// ── CBT Framework ─────────────────────────────────────────────────────────────
+function CbtSection() {
+  return (
+    <section
+      id="framework"
+      data-ocid="section.framework"
+      className="py-28 px-6 bg-background scroll-mt-16"
+    >
+      <div className="max-w-5xl mx-auto">
+        <FadeUp>
+          <SectionLabel>The framework</SectionLabel>
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl font-semibold text-foreground text-balance leading-tight mb-4">
+            Built on Cognitive
+            <br />
+            <span className="italic" style={{ color: "oklch(0.46 0.12 152)" }}>
+              Behavioural Therapy.
+            </span>
+          </h2>
+          <p className="text-lg lg:text-xl text-muted-foreground max-w-xl leading-relaxed mb-14">
+            CBT is one of the most researched and widely used approaches in psychology.
+            ThoughtLens.ai applies its core principles to help you slow down automatic thinking.
+          </p>
+        </FadeUp>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 mb-12">
+          {[
+            {
+              step: "1",
+              title: "Identify the thought",
+              desc: "CBT begins by separating what actually happened from the meaning your mind attached to it. Most distress comes from the interpretation, not the event.",
+            },
+            {
+              step: "2",
+              title: "Name the pattern",
+              desc: "Automatic thoughts follow recognisable patterns — fortune telling, catastrophising, overgeneralisation. Naming them is the first step to loosening their grip.",
+            },
+            {
+              step: "3",
+              title: "Find a balanced view",
+              desc: "CBT doesn't ask you to think positively. It asks you to think accurately — to find a more realistic perspective that accounts for what you actually know.",
+            },
+            {
+              step: "4",
+              title: "Notice what repeats",
+              desc: "The deepest insight comes from repeated use. Over time, ThoughtLens.ai surfaces which patterns, emotions, and core beliefs keep showing up — often across very different situations.",
+            },
+          ].map((item, i) => (
+            <FadeUp key={item.step} delay={i * 0.08}>
+              <div
+                className="rounded-2xl p-7 border border-border h-full"
+                style={{
+                  background: "linear-gradient(145deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.022 150) 100%)",
+                  boxShadow: "0 2px 20px oklch(0.22 0.018 248 / 0.05)",
+                }}
+              >
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center mb-5 text-sm font-bold"
+                  style={{
+                    background: "oklch(0.46 0.12 152 / 0.12)",
+                    color: "oklch(0.46 0.12 152)",
+                  }}
+                >
+                  {item.step}
+                </div>
+                <h3 className="font-semibold text-foreground mb-2 text-lg">{item.title}</h3>
+                <p className="text-sm lg:text-base text-muted-foreground leading-relaxed">{item.desc}</p>
+              </div>
+            </FadeUp>
+          ))}
+        </div>
+
+        {/* Deep insight callout */}
+        <FadeUp delay={0.2}>
+          <div
+            className="rounded-2xl p-7 border mb-5"
+            style={{
+              background: "linear-gradient(150deg, oklch(0.997 0.003 88) 0%, oklch(0.982 0.018 152) 100%)",
+              borderColor: "oklch(0.84 0.07 152 / 0.45)",
+              boxShadow: "0 4px 24px oklch(0.46 0.12 152 / 0.07)",
+            }}
+          >
+            <p className="text-xs font-semibold tracking-wide mb-3" style={{ color: "oklch(0.46 0.12 152)" }}>
+              What repeated use reveals
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[
+                { label: "The pattern", value: "Your mind keeps returning to the same fear, even when the situation changes." },
+                { label: "The trigger", value: "Certain types of events — uncertainty, silence, rejection — activate the same response." },
+                { label: "The belief underneath", value: "A core belief is often driving many different automatic thoughts at once." },
+              ].map((item) => (
+                <div key={item.label}>
+                  <p className="text-xs font-semibold tracking-wide mb-1" style={{ color: "oklch(0.46 0.12 152 / 0.8)" }}>
+                    {item.label}
+                  </p>
+                  <p className="text-sm leading-relaxed text-foreground/75">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </FadeUp>
+
+        {/* Disclaimer */}
+        <FadeUp delay={0.25}>
+          <div
+            className="rounded-2xl p-6 border"
+            style={{
+              background: "oklch(0.46 0.12 152 / 0.06)",
+              borderColor: "oklch(0.46 0.12 152 / 0.2)",
+            }}
+          >
+            <p className="text-sm lg:text-base leading-relaxed" style={{ color: "oklch(0.38 0.08 248)" }}>
+              <strong className="text-foreground">Important:</strong> ThoughtLens.ai is a self-reflection tool inspired by CBT principles.
+              It is not a diagnostic tool, and it is not a substitute for therapy or clinical care.
+              If you are experiencing significant distress, please speak with a qualified mental health professional.
+            </p>
+          </div>
+        </FadeUp>
+      </div>
+    </section>
+  );
+}
+
+// ── About ─────────────────────────────────────────────────────────────────────
+function AboutSection() {
+  return (
+    <section
+      id="about"
+      data-ocid="section.about"
+      className="py-28 px-6 scroll-mt-16"
+      style={{ background: "oklch(0.945 0.008 88)" }}
+    >
+      <div className="max-w-3xl mx-auto">
+        <FadeUp>
+          <SectionLabel>About</SectionLabel>
+          <h2 className="font-display text-4xl md:text-5xl font-semibold text-foreground text-balance leading-tight mb-8">
+            Why I built this.
+          </h2>
+        </FadeUp>
+
+        <FadeUp delay={0.1}>
+          <div
+            className="rounded-3xl p-8 md:p-10 border"
+            style={{
+              background: "oklch(0.995 0.004 88)",
+              borderColor: "oklch(0.88 0.025 150 / 0.5)",
+              boxShadow: "0 4px 28px oklch(0.22 0.018 248 / 0.07)",
+            }}
+          >
+            <div className="flex items-start gap-6 mb-8">
+              <Image
+                src="/sunil.png"
+                alt="Sunil Sharma"
+                width={80}
+                height={80}
+                className="rounded-full flex-shrink-0 object-cover"
+                style={{
+                  border: "2px solid oklch(0.88 0.025 150 / 0.5)",
+                  boxShadow: "0 2px 12px oklch(0.22 0.018 248 / 0.10)",
+                }}
+              />
+              <div className="pt-1">
+                <p className="font-semibold text-foreground text-lg">Sunil Sharma</p>
+                <p className="text-sm text-muted-foreground mb-2">Builder, ThoughtLens.ai</p>
+                <a
+                  href="https://www.linkedin.com/in/sunilsharma"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-wide transition-colors"
+                  style={{ color: "oklch(0.46 0.12 152)" }}
+                >
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
+                  LinkedIn
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-4 text-base lg:text-lg leading-relaxed text-foreground/80">
+              <p>
+                I&apos;ve spent a lot of time caught in my own thinking — going in circles, treating
+                assumptions as facts, not being able to tell the difference between what happened
+                and what my mind decided it meant.
+              </p>
+              <p>
+                I started building ThoughtLens.ai because I wanted a tool that would help me
+                slow down that process. Not a journal, not a chatbot — something structured that
+                could show me the mechanics of my own automatic thoughts.
+              </p>
+              <p>
+                The CBT framework gave me that structure. I built this to make it accessible to
+                anyone, without needing a therapist in the room — while always being clear that
+                this is a thinking tool, not a replacement for professional care.
+              </p>
+            </div>
+          </div>
+        </FadeUp>
+      </div>
+    </section>
+  );
+}
+
+// ── Contact ───────────────────────────────────────────────────────────────────
+function ContactSection() {
+  return (
+    <section
+      id="contact"
+      data-ocid="section.contact"
+      className="py-28 px-6 bg-background scroll-mt-16"
+    >
+      <div className="max-w-3xl mx-auto">
+        <FadeUp>
+          <SectionLabel>Contact</SectionLabel>
+          <h2 className="font-display text-4xl md:text-5xl font-semibold text-foreground text-balance leading-tight mb-4">
+            Get in touch.
+          </h2>
+          <p className="text-lg text-muted-foreground leading-relaxed mb-10">
+            Questions, feedback, or professional enquiries — I&apos;d love to hear from you.
+            If you&apos;re a therapist or mental health professional interested in the tool,
+            especially welcome to reach out.
+          </p>
+        </FadeUp>
+
+        <FadeUp delay={0.1}>
+          <div
+            className="rounded-2xl p-8 border border-border"
+            style={{
+              background: "linear-gradient(145deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.022 150) 100%)",
+              boxShadow: "0 2px 20px oklch(0.22 0.018 248 / 0.05)",
+            }}
+          >
+            <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+              Whether you have feedback on the tool, a question about the framework, or you&apos;re
+              a therapist or mental health professional curious about ThoughtLens.ai — reach out directly.
+            </p>
+            <a
+              href="mailto:hello@thoughtlens.ai"
+              className="inline-flex items-center gap-2 text-base font-semibold transition-colors"
+              style={{ color: "oklch(0.46 0.12 152)" }}
+            >
+              hello@thoughtlens.ai
+              <ArrowRight className="w-4 h-4" />
+            </a>
+          </div>
+        </FadeUp>
+      </div>
+    </section>
+  );
+}
+
 // ── Waitlist CTA ─────────────────────────────────────────────────────────────
 function WaitlistSection() {
   return (
@@ -946,9 +1228,11 @@ function WaitlistSection() {
         <FadeUp delay={0.1}>
           <Link
             href="/tool"
-            className="inline-flex items-center justify-center rounded-full bg-primary px-10 py-3 text-base font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-full px-10 py-3.5 text-base font-semibold tracking-wide transition"
             style={{
-              boxShadow: "0 10px 30px oklch(0.13 0.012 248 / 0.18)",
+              background: "oklch(0.13 0.012 248)",
+              color: "oklch(0.97 0.004 88)",
+              boxShadow: "0 10px 30px oklch(0.13 0.012 248 / 0.22)",
             }}
           >
             Launch the tool
@@ -972,7 +1256,13 @@ function Footer() {
         <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4 text-sm text-muted-foreground">
           <span>&copy; {year} ThoughtLens.ai</span>
           <span className="hidden sm:inline opacity-30">&middot;</span>
-         
+          <a href="#framework" className="hover:text-foreground transition-colors">Framework</a>
+          <span className="hidden sm:inline opacity-30">&middot;</span>
+          <a href="#about" className="hover:text-foreground transition-colors">About</a>
+          <span className="hidden sm:inline opacity-30">&middot;</span>
+          <a href="mailto:hello@thoughtlens.ai" className="hover:text-foreground transition-colors">Contact</a>
+          <span className="hidden sm:inline opacity-30">&middot;</span>
+          <span className="text-xs opacity-60">This is a thinking tool, not therapy.</span>
         </div>
       </div>
     </footer>
@@ -991,6 +1281,9 @@ export default function Page() {
         <HowItWorksSection />
         <DifferentSection />
         <VisionSection />
+        <CbtSection />
+        <AboutSection />
+        <ContactSection />
         <WaitlistSection />
       </main>
       <Footer />
