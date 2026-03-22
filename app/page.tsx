@@ -1098,7 +1098,7 @@ function AboutSection() {
           >
             <div className="flex items-start gap-6 mb-8">
               <Image
-                src="/sunil.png"
+                src="/Sunil.png"
                 alt="Sunil Sharma"
                 width={80}
                 height={80}
