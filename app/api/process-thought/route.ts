@@ -1,5 +1,6 @@
 import {
   classifyInput,
+  classifySituationContinuity,
   generateFactStoryStage,
   generateRecognitionStage,
   generateStoryEmotionStage,
@@ -169,7 +170,7 @@ async function runClassificationWithRetry(text: string) {
 
 export async function POST(req: Request) {
   try {
-    const { thought, visitorId, sessionId, threadId, threadTitle } =
+    const { thought, visitorId, sessionId, threadId, threadTitle, forceSameThread } =
       await req.json()
 
     if (!thought || !visitorId || !sessionId) {
@@ -281,6 +282,41 @@ export async function POST(req: Request) {
       )
       .filter((item): item is string => item.length > 0)
 
+    // Situation continuity check — only runs when there's an existing situation to compare against.
+    // If the user's new thought is about a completely different situation, we surface the ambiguity
+    // to the frontend (threadReset: true + new threadId) rather than silently mixing situations.
+    let isNewSituation = false
+    let analysisThreadId = threadIdForAnalysis
+
+    // Skip continuity check when the user has explicitly confirmed it's the same thread
+    // (i.e. they already saw the ambiguity card and chose "It's still about the same thing")
+    if (!forceSameThread && isExistingThread && existingSituation && previousThoughts.length >= 1) {
+      try {
+        const continuity = await classifySituationContinuity({
+          situation: existingSituation,
+          thought: normalizedThought,
+          threadHistory: previousThoughts,
+        })
+        isNewSituation = !continuity.sameSituation
+      } catch {
+        // Classification failure → assume same situation, don't disrupt the user
+        isNewSituation = false
+      }
+    }
+
+    // If a new situation is detected, create a fresh thread so analysis is saved separately.
+    if (isNewSituation) {
+      analysisThreadId = randomUUID()
+      await ensureThreadContext({
+        visitorId,
+        sessionId,
+        threadId: analysisThreadId,
+        threadTitle: normalizedThought.slice(0, 80),
+      })
+      // Reset situation context so the new thread extracts its own situation
+      threadSituation = null
+    }
+
     try {
       /* -----------------------------
        FACT vs STORY
@@ -319,7 +355,7 @@ export async function POST(req: Request) {
         threadSituation = situation
         if (threadSituation) {
           // Persist situation once so all later passes keep the same event context.
-          await updateThreadSituation(threadIdForAnalysis, threadSituation)
+          await updateThreadSituation(analysisThreadId, threadSituation)
         }
       } else {
         situation = threadSituation
@@ -366,6 +402,8 @@ export async function POST(req: Request) {
         situation: factStory.situation,
         story: factStory.story,
         emotion: factStory.emotions?.[0]?.trim() || "uncertainty",
+        previousThoughts,
+        previousPatterns,
       }
 
       const recognition = await validateRecognitionStage(
@@ -387,6 +425,7 @@ export async function POST(req: Request) {
       const baseContext: ThoughtContext = {
         situation: currentSituation,
         interpretation: story,
+        originalThought: normalizedThought,
         emotion: factStory.emotions?.[0]?.trim() || "uncertainty",
         previousThoughts,
         previousPatterns,
@@ -446,7 +485,7 @@ export async function POST(req: Request) {
         thought: normalizedThought,
         intent: classification.type,
         status: "REFLECTION_COMPLETE",
-        threadId: threadIdForAnalysis,
+        threadId: analysisThreadId,
         sessionId,
         visitorId,
         analysis: {
@@ -467,7 +506,7 @@ export async function POST(req: Request) {
        THREAD INSIGHT
       ------------------------------*/
 
-      const insight = await updateThreadInsight(threadIdForAnalysis)
+      const insight = await updateThreadInsight(analysisThreadId)
 
       return Response.json({
         status: "success",
@@ -484,8 +523,8 @@ export async function POST(req: Request) {
         },
 
         threadInsights: insight,
-        threadReset: false,
-        threadId: threadIdForAnalysis,
+        threadReset: isNewSituation,
+        threadId: analysisThreadId,
       })
     } catch (error) {
       console.error("AI pipeline error", error)

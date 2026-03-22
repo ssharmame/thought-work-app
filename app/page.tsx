@@ -172,8 +172,7 @@ function Hero() {
             href="/tool"
             className="inline-flex items-center justify-center rounded-full bg-primary px-9 py-3 text-base font-semibold uppercase tracking-[0.15em] text-primary-foreground transition hover:bg-primary/90"
             style={{
-              boxShadow:
-                "0 4px 20px oklch(0.46 0.12 152 / 0.35), 0 1px 4px oklch(0.46 0.12 152 / 0.2)",
+              boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.25), 0 1px 4px oklch(0.13 0.012 248 / 0.12)",
             }}
           >
             Launch the tool
@@ -949,7 +948,7 @@ function WaitlistSection() {
             href="/tool"
             className="inline-flex items-center justify-center rounded-full bg-primary px-10 py-3 text-base font-semibold uppercase tracking-[0.2em] text-primary-foreground transition hover:bg-primary/90"
             style={{
-              boxShadow: "0 10px 30px oklch(0.46 0.12 152 / 0.25)",
+              boxShadow: "0 10px 30px oklch(0.13 0.012 248 / 0.18)",
             }}
           >
             Launch the tool

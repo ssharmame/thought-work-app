@@ -51,25 +51,25 @@ export async function handleClassification(
       return {
         status: "guidance",
         message:
-          "You described a situation. What thought or interpretation did your mind create about it?",
+          "What you wrote describes a situation rather than a thought about it.\n\nThoughtLens works with the story your mind creates — not the situation itself.\n\nWhat did your mind tell you this means?",
       }
     case "EMOTIONAL_EXPRESSION":
       return {
         status: "guidance",
         message:
-          "I hear that you're feeling this way. What thought might be contributing to that feeling?",
+          "What you wrote describes how you're feeling rather than the thought behind it.\n\nEmotions are real — but they're usually triggered by a specific thought.\n\nWhat is your mind telling you that's making you feel this way?",
       }
     case "GENERAL_QUESTION":
       return {
         status: "guidance",
         message:
-          "This tool works best when you share a thought or interpretation about something happening in your life.",
+          "ThoughtLens works with personal thoughts — the interpretations and conclusions your mind draws about your own life.\n\nWhat is your mind telling you about a situation you're in?",
       }
     default:
       return {
         status: "guidance",
         message:
-          "We couldn't identify a clear thought. Try describing what your mind is making of the situation.",
+          "We couldn't quite identify a clear thought here.\n\nTry describing what your mind is making of the situation — not just what happened, but what you concluded from it.",
       }
   }
 }

@@ -9,6 +9,30 @@ import { motion } from "framer-motion";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 
+// Safety-net: convert noun-form emotions to adjective form in case AI returns the wrong form
+const EMOTION_NOUN_TO_ADJECTIVE: Record<string, string> = {
+  anxiety: "anxious",
+  sadness: "sad",
+  fear: "afraid",
+  anger: "angry",
+  hopelessness: "hopeless",
+  overwhelm: "overwhelmed",
+  frustration: "frustrated",
+  helplessness: "helpless",
+  guilt: "guilty",
+  shame: "ashamed",
+  loneliness: "lonely",
+  grief: "grieving",
+  panic: "panicked",
+  stress: "stressed",
+  worry: "worried",
+}
+
+function toEmotionAdjective(emotion: string): string {
+  const lower = emotion.toLowerCase().trim()
+  return EMOTION_NOUN_TO_ADJECTIVE[lower] ?? lower
+}
+
 const placeholderExamples = [
   "It's been 3 days since my interview — maybe I wasn't selected",
   "They haven't replied to my message — maybe they're upset with me",
@@ -88,29 +112,32 @@ const INSIGHT_CARD_STYLES: Record<
   string,
   { bg: string; border: string; dot: string }
 > = {
+  // Neutral cards — near-white, almost no tint
   fact: {
-    bg: "oklch(0.93 0.03 220 / 0.5)",
-    border: "oklch(0.50 0.10 220 / 0.3)",
-    dot: "oklch(0.50 0.10 220)",
+    bg: "oklch(0.997 0.003 88)",
+    border: "oklch(0.88 0.012 88 / 0.7)",
+    dot: "oklch(0.52 0.08 220)",
   },
   story: {
-    bg: "oklch(0.92 0.06 30 / 0.35)",
-    border: "oklch(0.52 0.15 30 / 0.3)",
-    dot: "oklch(0.52 0.15 30)",
+    bg: "oklch(0.997 0.003 88)",
+    border: "oklch(0.88 0.012 88 / 0.7)",
+    dot: "oklch(0.52 0.12 30)",
   },
   emotion: {
-    bg: "oklch(0.92 0.05 300 / 0.25)",
-    border: "oklch(0.55 0.1 300 / 0.3)",
-    dot: "oklch(0.55 0.1 300)",
+    bg: "oklch(0.997 0.003 88)",
+    border: "oklch(0.88 0.012 88 / 0.7)",
+    dot: "oklch(0.52 0.09 300)",
   },
+  // Pattern — very subtle rose warmth, the key insight card
   pattern: {
-    bg: "oklch(0.92 0.06 20 / 0.3)",
-    border: "oklch(0.52 0.15 20 / 0.3)",
+    bg: "linear-gradient(150deg, oklch(0.997 0.003 88) 0%, oklch(0.985 0.015 20) 100%)",
+    border: "oklch(0.84 0.06 20 / 0.5)",
     dot: "oklch(0.52 0.15 20)",
   },
+  // Balanced — very subtle sage, the resolution card
   balanced: {
-    bg: "oklch(0.92 0.05 152 / 0.35)",
-    border: "oklch(0.46 0.12 152 / 0.3)",
+    bg: "linear-gradient(150deg, oklch(0.997 0.003 88) 0%, oklch(0.982 0.018 152) 100%)",
+    border: "oklch(0.84 0.07 152 / 0.45)",
     dot: "oklch(0.46 0.12 152)",
   },
 };
@@ -121,6 +148,7 @@ type AnalysisCard = {
   value: string;
   style: { bg: string; border: string; dot: string };
   patternKey?: string;
+  question?: string;
 };
 
 const buildAnalysisCards = (
@@ -159,6 +187,7 @@ const buildAnalysisCards = (
           value: patternValue,
           style: INSIGHT_CARD_STYLES.pattern,
           patternKey: analysis.pattern ?? undefined,
+          question: analysis.reflectionQuestion?.trim() || undefined,
         }
       : null,
     {
@@ -175,12 +204,15 @@ type InsightCardProps = {
   value: string;
   style: { bg: string; border: string; dot: string };
   patternKey?: string;
+  question?: string;
 };
 
-function InsightCard({ title, value, style, patternKey }: InsightCardProps) {
+function InsightCard({ title, value, style, patternKey, question }: InsightCardProps) {
   const display = patternKey
     ? PATTERN_DISPLAY[patternKey.toLowerCase()]
     : null;
+  // Use dynamic thread-aware question when available, fall back to static pattern question
+  const sitWithQuestion = question || display?.question;
 
   return (
     <div
@@ -195,8 +227,8 @@ function InsightCard({ title, value, style, patternKey }: InsightCardProps) {
       {display ? (
         <>
           <p
-            className="text-xs font-bold uppercase tracking-widest mb-1"
-            style={{ color: style.dot, opacity: 0.7 }}
+            className="text-xs font-semibold tracking-wide mb-1"
+            style={{ color: style.dot, opacity: 0.75 }}
           >
             A thinking pattern
           </p>
@@ -210,34 +242,34 @@ function InsightCard({ title, value, style, patternKey }: InsightCardProps) {
           <p className="text-base leading-relaxed text-foreground mb-4">
             {value}
           </p>
-          {/* Fixed reflection question */}
-          <div
-            className="rounded-xl px-4 py-3 mt-2"
-            style={{
-              background: "oklch(0.97 0.008 88)",
-              border: `1px solid ${style.border}`,
-            }}
-          >
-            <p
-              className="text-xs font-semibold uppercase tracking-wider mb-1"
-              style={{ color: style.dot }}
-            >
-              Something to sit with
-            </p>
-            <p className="text-sm leading-relaxed text-foreground">
-              {display.question}
-            </p>
-          </div>
+          {/* Reflection question — dynamic (thread-aware) when available, static fallback */}
+          {sitWithQuestion && (
+            <div className="mt-3">
+              <p
+                className="text-xs font-semibold tracking-wide mb-1"
+                style={{ color: style.dot, opacity: 0.75 }}
+              >
+                Something to sit with
+              </p>
+              <p className="text-sm leading-relaxed italic" style={{ color: "oklch(0.42 0.025 248)" }}>
+                {sitWithQuestion}
+              </p>
+            </div>
+          )}
         </>
       ) : (
         <>
           <p
-            className="text-sm font-bold uppercase tracking-widest mb-3"
+            className="text-xs font-semibold tracking-wide mb-2"
             style={{ color: style.dot }}
           >
             {title}
           </p>
-          <p className="text-base leading-relaxed text-foreground">{value}</p>
+          <p className="text-base leading-relaxed text-foreground">
+            {title === "How this made me feel"
+              ? `This thought left you feeling ${toEmotionAdjective(value)}.`
+              : value}
+          </p>
         </>
       )}
     </div>
@@ -383,64 +415,68 @@ function InsightSummary({
           style={{ background: "oklch(0.46 0.12 152)" }}
         />
       </div>
-      <Card
-        className="flex-1 space-y-6 w-full max-w-full sm:max-w-2xl"
+      <div
+        className="flex-1 rounded-2xl p-6 space-y-5"
         style={{
           background:
-            "linear-gradient(160deg, oklch(0.96 0.04 90) 0%, oklch(0.93 0.06 150) 100%)",
-          borderColor: "oklch(0.88 0.07 150 / 0.6)",
-          boxShadow: "0 15px 45px oklch(0.22 0.02 248 / 0.15)",
+            "linear-gradient(150deg, oklch(0.995 0.004 88) 0%, oklch(0.960 0.022 260) 100%)",
+          border: "1px solid oklch(0.84 0.04 260 / 0.45)",
+          boxShadow: "0 4px 20px oklch(0.22 0.018 248 / 0.06)",
         }}
       >
-        <div className="space-y-6">
-          <p className="text-2xl md:text-3xl font-semibold mb-6 text-foreground">
-            What we&apos;re noticing in your thinking
+        <p
+          className="text-xs font-semibold tracking-wide"
+          style={{ color: "oklch(0.42 0.10 260)" }}
+        >
+          What your thinking reveals
+        </p>
+
+        {/* Pattern */}
+        <div className="space-y-1">
+          <p
+            className="text-xs font-semibold tracking-wide"
+            style={{ color: "oklch(0.50 0.08 260)" }}
+          >
+            The pattern
           </p>
-          <div className="space-y-2">
+          <p className="text-base leading-relaxed text-foreground">
+            {patternSummaryText}
+          </p>
+          {dominantPattern && (
+            <p className="text-xs" style={{ color: "oklch(0.52 0.06 260)" }}>
+              {dominantPattern}
+            </p>
+          )}
+        </div>
+
+        {/* Emotion */}
+        <div className="space-y-1">
+          <p
+            className="text-xs font-semibold tracking-wide"
+            style={{ color: "oklch(0.50 0.08 260)" }}
+          >
+            What kept surfacing
+          </p>
+          <p className="text-base text-foreground capitalize">
+            {emotionSummaryText}
+          </p>
+        </div>
+
+        {/* Deeper belief — only shown when something meaningful is detected */}
+        {beliefDisplay && (
+          <div className="space-y-1">
             <p
-              className="text-sm font-semibold uppercase tracking-widest flex items-center gap-2"
-              style={{ color: "oklch(0.42 0.11 152)" }}
+              className="text-xs font-semibold tracking-wide"
+              style={{ color: "oklch(0.50 0.08 260)" }}
             >
-              <span>🧠</span> Thinking pattern
+              A possible belief underneath
             </p>
-            <p className="text-lg leading-relaxed font-medium text-foreground">
-              {patternSummaryText}
-            </p>
-            {dominantPattern && (
-              <p className="text-sm text-muted-foreground">
-                Dominant pattern: {dominantPattern}
-              </p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <p
-              className="text-sm font-semibold uppercase tracking-widest flex items-center gap-2"
-              style={{ color: "oklch(0.42 0.11 152)" }}
-            >
-              <span>❤️</span> Emotion that appears most often
-            </p>
-            <p className="text-lg font-medium text-foreground">
-              {emotionSummaryText}
-            </p>
-            {dominantEmotion && (
-              <p className="text-sm text-muted-foreground">
-                Dominant emotion: {dominantEmotion}
-              </p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <p
-              className="text-sm font-semibold uppercase tracking-widest flex items-center gap-2"
-              style={{ color: "oklch(0.42 0.11 152)" }}
-            >
-              <span>🌱</span> Possible deeper belief
-            </p>
-            <p className="text-lg font-medium text-foreground">
+            <p className="text-base leading-relaxed text-foreground">
               {beliefDisplay}
             </p>
           </div>
-        </div>
-      </Card>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -493,6 +529,13 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
   const [balancedRevealed, setBalancedRevealed] = useState(false);
   const [acknowledgement, setAcknowledgement] = useState("");
   const [reassurance, setReassurance] = useState("");
+  const [clarityChoice, setClarityChoice] = useState<"yes" | "not-yet" | null>(null);
+  const [situationAmbiguity, setSituationAmbiguity] = useState<{
+    pendingThought: string;
+    newThreadId: string;
+  } | null>(null);
+  const [isAnalyzingFollowUp, setIsAnalyzingFollowUp] = useState(false);
+  const [insightUnlocked, setInsightUnlocked] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const visitorIdRef = useRef("");
   const sessionIdRef = useRef("");
@@ -514,7 +557,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
       ? coreBelief
       : computedBelief
         ? computedBelief
-        : "Not clear yet";
+        : null;
   const patternSummaryText = dominantPattern
     ? patternToInsight(dominantPattern)
     : "We are still watching how your thoughts unfold.";
@@ -586,6 +629,10 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     setBalancedRevealed(false);
     setAcknowledgement("");
     setReassurance("");
+    setClarityChoice(null);
+    setSituationAmbiguity(null);
+    setIsAnalyzingFollowUp(false);
+    setInsightUnlocked(false);
   };
 
   // User signals their next thought is about a different situation entirely.
@@ -602,6 +649,8 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     setValidationMessage("");
     setGuidanceMessage(null);
     setBalancedRevealed(false);
+    setClarityChoice(null);
+    setSituationAmbiguity(null);
     // If they've typed something, submit it as a new thread immediately.
     // If the textarea is empty, fall through to the clean initial input state.
     if (currentThought.trim().length >= 6) {
@@ -613,7 +662,10 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     }
   };
 
-  const processThought = async (overrideText?: string) => {
+  const processThought = async (overrideText?: string, forceSameThread?: boolean, forceFirstThought?: boolean) => {
+    // Capture before any state changes — reliable even with async React batching.
+    const isFollowUp = !forceFirstThought && clarityChoice === "not-yet";
+
     const message = overrideText ?? thought;
     setThought(message);
     if (!initializeContext()) {
@@ -622,6 +674,12 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     }
     if (!contextReady) setContextReady(true);
     setGuidanceMessage(null);
+    // Only reset thread-level state for first thought — for follow-up, keep
+    // clarityChoice/"not-yet" and situationAmbiguity visible until classify resolves.
+    if (!isFollowUp) {
+      setClarityChoice(null);
+      setSituationAmbiguity(null);
+    }
     const validation = validateSimpleInput(message);
     setValidationMessage(validation.message ?? "");
     if (!validation.valid) return;
@@ -629,32 +687,65 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     setClarification(null);
     setGuidanceMessage(null);
 
-    // Clear previous analysis and acknowledgement so the calming loading card
-    // shows on every submission — not just the first one.
-    setAnalysis(null);
-    setAcknowledgement("");
-    setReassurance("");
-    setLoading(true);
+    if (!isFollowUp) {
+      // First thought: show loading card immediately — instant feedback.
+      setAnalysis(null);
+      setAcknowledgement("");
+      setReassurance("");
+      setLoading(true);
+    } else {
+      // Follow-up thought: stay in the form but disable it while classifying.
+      setIsAnalyzingFollowUp(true);
+    }
 
     // Phase 1 — classify the input (~400-600ms).
-    // This tells us whether to warm up with acknowledgement or return guidance immediately.
     let classifyResult: { status: string; message?: string };
     try {
+      const existingSituation = analysis?.situation || thoughtHistory.at(-1)?.analysis.situation || null;
+      const threadHistory = thoughtHistory.map(
+        (e) => e.analysis.story?.trim() || e.thought
+      );
       const classifyRes = await fetch("/api/classify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ thought: message }),
+        body: JSON.stringify({
+          thought: message,
+          situation: forceSameThread ? null : existingSituation,
+          previousThoughts: forceSameThread ? [] : threadHistory,
+        }),
       });
       classifyResult = await classifyRes.json();
     } catch {
       classifyResult = { status: "guidance", message: "Something went wrong. Please try again." };
     }
 
+    // Classify done — always clear the analyzing state.
+    setIsAnalyzingFollowUp(false);
+
     if (classifyResult.status === "guidance" || classifyResult.status === "safety") {
       setGuidanceMessage(classifyResult.message || "We couldn't identify a clear thought.");
       setLoading(false);
       return;
     }
+
+    if (classifyResult.status === "different_situation") {
+      // Follow-up: show ambiguity inline inside the "not-yet" form card.
+      // First thought: swap loading card for ambiguity card (rare — no prior situation to compare).
+      setSituationAmbiguity({
+        pendingThought: message,
+        newThreadId: createUUID(),
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Confirmed valid thought — now clear previous analysis and start the loading screen.
+    setClarityChoice(null);
+    setSituationAmbiguity(null);
+    setAnalysis(null);
+    setAcknowledgement("");
+    setReassurance("");
+    setLoading(true);
 
     // Phase 2 — confirmed distorted thought.
     // Fire /api/acknowledge now — the AI-written line is the first and only
@@ -683,6 +774,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
           sessionId: sessionIdRef.current,
           threadId: threadIdRef.current,
           threadTitle: message.slice(0, 80),
+          forceSameThread: forceSameThread ?? false,
         }),
       });
       const data = await res.json();
@@ -703,10 +795,14 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
       const responseThreadId =
         typeof data.threadId === "string" ? data.threadId : threadIdRef.current;
       if (data.threadReset && responseThreadId) {
-        startNewThoughtThread({ threadId: responseThreadId });
-        setHint(
-          "This thought felt like a different situation, so we started a fresh thread.",
-        );
+        // Continuity check in process-thought also detected a new situation (safety net).
+        // Surface ambiguity — analysis already ran but we discard it. User decides first.
+        setSituationAmbiguity({
+          pendingThought: message,
+          newThreadId: responseThreadId,
+        });
+        setLoading(false);
+        return;
       } else if (responseThreadId) {
         threadIdRef.current = responseThreadId;
       }
@@ -826,19 +922,39 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
             }}
           >
             <p
-              className="text-xs font-bold uppercase tracking-widest mb-3"
-              style={{ color: "oklch(0.42 0.11 152)" }}
+              className="text-xs font-semibold tracking-wide mb-2"
+              style={{ color: "oklch(0.50 0.08 152)" }}
             >
               You wrote
             </p>
             <p className="text-base font-semibold leading-relaxed text-foreground">
               &ldquo;{entry.thought}&rdquo;
             </p>
-            <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-              Let&apos;s slow this down and look at it together.
-            </p>
           </div>
         </motion.div>
+
+        {/* Grounding line — appears as its own progressive beat after the thought bubble */}
+        {revealGroup >= 1 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+            className="flex items-start gap-4 mb-6"
+          >
+            <div className="mt-2 flex-shrink-0">
+              <span
+                className="block h-2 w-2 rounded-full"
+                style={{ background: "oklch(0.46 0.12 152 / 0.4)" }}
+              />
+            </div>
+            <p
+              className="flex-1 text-sm leading-relaxed pt-0.5"
+              style={{ color: "oklch(0.42 0.025 248)" }}
+            >
+              Let&apos;s slow this down and look at it together.
+            </p>
+          </motion.div>
+        )}
 
         {/* Cards grouped — each group reveals on user tap */}
         {visibleCards.map((card) => {
@@ -847,6 +963,18 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
 
           // Don't show cards beyond current group
           if (cardGroup > revealGroup) return null
+
+          // Stagger index within this group — so cards in the same group arrive one by one
+          const cardsInSameGroup = visibleCards.filter(
+            (c) => (GROUP_MAP[c.key] ?? 1) === cardGroup
+          )
+          const indexInGroup = cardsInSameGroup.findIndex((c) => c.key === card.key)
+          const isFirstGroup = cardGroup === 1
+          // First group: cards arrive after the grounding line (0.6s + stagger)
+          // Other groups: cards arrive quickly after tap with stagger
+          const cardDelay = isFirstGroup
+            ? 0.6 + indexInGroup * 0.18
+            : 0.05 + indexInGroup * 0.18
 
           // Balanced card — keep existing user-gated behaviour
           if (isBalanced) {
@@ -858,7 +986,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   key={`balanced-gate-${index}`}
                   initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  transition={{ duration: 0.4, delay: cardDelay, ease: "easeOut" }}
                   className="flex items-start gap-4 mb-8"
                 >
                   <div className="mt-2 flex-shrink-0">
@@ -894,7 +1022,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                 key={`${card.key}-${index}`}
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
+                transition={{ duration: 0.45, delay: cardDelay, ease: "easeOut" }}
                 className="flex items-start gap-4 mb-8"
               >
                 <div className="mt-2 flex-shrink-0">
@@ -908,6 +1036,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   value={card.value.trim()}
                   style={card.style}
                   patternKey={card.patternKey}
+                  question={card.question}
                 />
               </motion.div>
             )
@@ -918,7 +1047,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
               key={`${card.key}-${index}`}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              transition={{ duration: 0.45, delay: cardDelay, ease: "easeOut" }}
               className="flex items-start gap-4 mb-8"
             >
               <div className="mt-2 flex-shrink-0">
@@ -932,6 +1061,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                 value={card.value.trim()}
                 style={card.style}
                 patternKey={card.patternKey}
+                question={card.question}
               />
             </motion.div>
           )
@@ -945,7 +1075,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
               key={`continue-${revealGroup}-${index}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
+              transition={{ duration: 0.3, delay: revealGroup === 1 ? 1.0 : 0.35 }}
               className="flex items-start gap-4 mb-8"
             >
               <div className="mt-2 flex-shrink-0">
@@ -979,7 +1109,6 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
 
   const placeholderExample = placeholderExamples[placeholderIndex];
   const inlineMessage = guidanceMessage ?? validationMessage ?? hint;
-  const showInsights = pass >= 4 && Boolean(analysis);
   const orderedThoughtsForTimeline = useMemo(
     () =>
       [...thoughtHistory]
@@ -1028,10 +1157,10 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
       <main className="max-w-3xl mx-auto px-5 pt-8 pb-4 md:px-6 md:py-16 flex flex-col gap-8 md:gap-12">
         <FadeUp>
           <header className="text-center space-y-2 md:space-y-3">
-            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-semibold text-foreground text-balance leading-tight">
+            <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-semibold text-foreground text-balance leading-tight">
               What is your mind telling you?
             </h1>
-            <p className="text-base md:text-lg font-medium" style={{ color: "oklch(0.40 0.025 248)" }}>
+            <p className="text-sm sm:text-base md:text-lg" style={{ color: "oklch(0.48 0.020 248)" }}>
               Share the thought — not just what happened, but what you&apos;re making of it.
             </p>
           </header>
@@ -1040,13 +1169,9 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         {thoughtHistory.length === 0 && !loading && !clarification && (
           <FadeUp delay={0.1}>
             <section
-              className="rounded-3xl p-5 sm:p-8 space-y-6"
+              className="rounded-3xl space-y-5 sm:space-y-6 p-5 sm:p-8 input-card"
               style={{
-                background:
-                  "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.025 150) 100%)",
-                boxShadow:
-                  "0 24px 64px oklch(0.22 0.018 248 / 0.12), 0 4px 16px oklch(0.22 0.018 248 / 0.06), inset 0 1px 0 oklch(1 0 0 / 0.7)",
-                border: "1px solid oklch(0.88 0.025 150 / 0.5)",
+                background: "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.025 150) 100%)",
               }}
             >
               <div>
@@ -1060,13 +1185,13 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   }}
                   onBlur={handleThoughtBlur}
                   placeholder={placeholderExample}
-                  className="h-40 md:h-36 w-full rounded-2xl p-5 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
+                  className="h-40 md:h-36 w-full rounded-2xl p-5 text-base text-foreground placeholder:text-[oklch(0.70_0.012_248)] focus:outline-none focus:ring-2 resize-none"
                   style={{
                     background: "oklch(1 0 0)",
                     border: "1.5px solid oklch(0.78 0.025 88)",
                   }}
                 />
-                <p className="mt-2 text-sm font-medium" style={{ color: "oklch(0.45 0.020 248)" }}>
+                <p className="mt-2 text-xs" style={{ color: "oklch(0.58 0.015 248)" }}>
                   Whatever you&apos;re feeling right now makes sense. Let&apos;s slow it down together.
                 </p>
               </div>
@@ -1080,23 +1205,30 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                     color: "oklch(0.28 0.08 152)",
                   }}
                 >
-                  {inlineMessage}
+                  {inlineMessage.split("\n\n").map((para, i) => (
+                    <p key={i} className={i > 0 ? "mt-2" : ""}>{para}</p>
+                  ))}
                 </div>
               )}
               <Button
                 data-ocid="thought_page.submit_button"
                 onClick={() => processThought()}
                 className="w-full rounded-full h-12 text-base font-semibold"
-                style={{ boxShadow: "0 4px 20px oklch(0.46 0.12 152 / 0.30)" }}
+                style={{
+                  background: "oklch(0.13 0.012 248)",
+                  color: "oklch(0.97 0.004 88)",
+                  boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.25)",
+                }}
               >
                 Understand this thought
               </Button>
-              <p className="text-sm text-center font-medium" style={{ color: "oklch(0.48 0.020 248)" }}>
-                This is a thinking tool, not therapy. Be honest with yourself.
+              <p className="text-xs text-center" style={{ color: "oklch(0.65 0.010 248)" }}>
+                This is a thinking tool, not therapy.
               </p>
             </section>
           </FadeUp>
         )}
+
 
         {loading && (
           <FadeUp>
@@ -1244,16 +1376,214 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                 if (!isLatest) return null;
                 return renderTimelineEntry(entry, idx);
               })}
-              {showInsights && analysis && (
-                <InsightSummary
-                  patternSummaryText={patternSummaryText}
-                  emotionSummaryText={emotionSummaryText}
-                  beliefDisplay={beliefDisplay}
-                  dominantPattern={dominantPattern}
-                  dominantEmotion={dominantEmotion}
-                />
+
+              {/* Thread progress signal + clarity choice — appear after balanced card is revealed */}
+              {analysis && balancedRevealed && !loading && (
+                <>
+                  {/* Progress signal — honest location info, no judgment */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: 0.1 }}
+                    className="flex items-start gap-4 mb-6"
+                  >
+                    <div className="mt-2 flex-shrink-0">
+                      <span
+                        className="block h-2 w-2 rounded-full"
+                        style={{ background: "oklch(0.46 0.12 152 / 0.4)" }}
+                      />
+                    </div>
+                    <p
+                      className="flex-1 text-sm leading-relaxed pt-0.5"
+                      style={{ color: "oklch(0.40 0.025 248)" }}
+                    >
+                      {thoughtHistory.length === 1
+                        ? "You've explored one angle of this situation."
+                        : `You've now looked at this from ${thoughtHistory.length} angles.`}
+                    </p>
+                  </motion.div>
+
+                  {/* Clarity choice — user decides when the thread is complete */}
+                  {clarityChoice === null && !situationAmbiguity && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.2 }}
+                      className="flex items-start gap-4 mb-8"
+                    >
+                      <div className="mt-2 flex-shrink-0">
+                        <span
+                          className="block h-3 w-3 rounded-full border-2"
+                          style={{
+                            borderColor: "oklch(0.48 0.08 310)",
+                            background: "oklch(0.977 0.008 88)",
+                          }}
+                        />
+                      </div>
+                      <div
+                        className="flex-1 rounded-2xl p-6 space-y-4"
+                        style={{
+                          background:
+                            "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.962 0.025 310) 100%)",
+                          border: "1px solid oklch(0.86 0.035 310 / 0.55)",
+                          boxShadow: "0 8px 32px oklch(0.22 0.018 248 / 0.07)",
+                        }}
+                      >
+                        <p
+                          className="text-base font-semibold leading-snug"
+                          style={{ color: "oklch(0.22 0.018 248)" }}
+                        >
+                          Does this feel clearer than when you started?
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setClarityChoice("yes")}
+                            className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
+                            style={{
+                              background: "oklch(0.92 0.05 152 / 0.4)",
+                              border: "1px solid oklch(0.46 0.12 152 / 0.35)",
+                              color: "oklch(0.32 0.09 152)",
+                            }}
+                          >
+                            Yes, I have more clarity →
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setClarityChoice("not-yet")}
+                            className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
+                            style={{
+                              background: "oklch(0.96 0.012 310 / 0.4)",
+                              border: "1px solid oklch(0.84 0.03 310 / 0.4)",
+                              color: "oklch(0.39 0.09 310)",
+                            }}
+                          >
+                            Not yet — there&apos;s still something here →
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Completion — user says they have clarity */}
+                  {clarityChoice === "yes" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4 }}
+                      className="flex items-start gap-4 mb-8"
+                    >
+                      <div className="mt-2 flex-shrink-0">
+                        <span
+                          className="block h-3 w-3 rounded-full"
+                          style={{ background: "oklch(0.46 0.12 152)" }}
+                        />
+                      </div>
+                      <div
+                        className="flex-1 rounded-2xl p-6 space-y-4"
+                        style={{
+                          background:
+                            "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.025 150) 100%)",
+                          border: "1px solid oklch(0.88 0.025 150 / 0.5)",
+                          boxShadow: "0 8px 32px oklch(0.22 0.018 248 / 0.06)",
+                        }}
+                      >
+                        <p
+                          className="text-base font-semibold leading-relaxed"
+                          style={{ color: "oklch(0.22 0.018 248)" }}
+                        >
+                          You&apos;ve worked through this situation and found a clearer way to see it.
+                        </p>
+                        <p
+                          className="text-sm leading-relaxed"
+                          style={{ color: "oklch(0.40 0.025 248)" }}
+                        >
+                          That&apos;s the work.
+                        </p>
+                        <div className="flex flex-col gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => startNewThoughtThread()}
+                            className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
+                            style={{
+                              background: "oklch(0.92 0.05 152 / 0.4)",
+                              border: "1px solid oklch(0.46 0.12 152 / 0.35)",
+                              color: "oklch(0.32 0.09 152)",
+                            }}
+                          >
+                            Explore a different situation →
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setClarityChoice("not-yet")}
+                            className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
+                            style={{
+                              background: "oklch(0.96 0.012 310 / 0.4)",
+                              border: "1px solid oklch(0.84 0.03 310 / 0.4)",
+                              color: "oklch(0.39 0.09 310)",
+                            }}
+                          >
+                            There&apos;s still something here I want to explore →
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                </>
               )}
-              {!loading && (
+
+
+              {/* Insight unlock — available after 2 passes, user-initiated */}
+              {analysis && thoughtHistory.length >= 2 && balancedRevealed && !loading && (
+                <>
+                  {!insightUnlocked ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: 0.15 }}
+                      className="flex items-start gap-4 mb-6"
+                    >
+                      <div className="mt-2 flex-shrink-0">
+                        <span
+                          className="block h-2 w-2 rounded-full"
+                          style={{ background: "oklch(0.52 0.14 260 / 0.5)" }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setInsightUnlocked(true)}
+                        className="flex-1 text-left text-sm leading-relaxed pt-0.5 transition-opacity hover:opacity-70"
+                        style={{ color: "oklch(0.42 0.08 260)" }}
+                      >
+                        You&apos;ve explored this from {thoughtHistory.length} angles. See what your thinking reveals →
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.45, ease: "easeOut" }}
+                      className="flex items-start gap-4 mb-6"
+                    >
+                      <div className="mt-2 flex-shrink-0">
+                        <span
+                          className="block h-3 w-3 rounded-full"
+                          style={{ background: "oklch(0.52 0.14 260)" }}
+                        />
+                      </div>
+                      <InsightSummary
+                        patternSummaryText={patternSummaryText}
+                        emotionSummaryText={emotionSummaryText}
+                        beliefDisplay={beliefDisplay}
+                        dominantPattern={dominantPattern}
+                        dominantEmotion={dominantEmotion}
+                      />
+                    </motion.div>
+                  )}
+                </>
+              )}
+              {!loading && clarityChoice === "not-yet" && (
                 <div className="flex items-start gap-4">
                   <div className="mt-2">
                     <span
@@ -1276,18 +1606,11 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                       boxShadow: "0 8px 32px oklch(0.22 0.018 248 / 0.07)",
                     }}
                   >
-                    <div>
-                      <p
-                        className="text-sm font-semibold uppercase tracking-widest mb-3"
-                        style={{ color: "oklch(0.39 0.09 310)" }}
-                      >
-                        What came up next?
-                      </p>
-
-                      {/* Thread situation anchor — shows the user which situation they're exploring */}
-                      {analysis?.situation && (
+                    {situationAmbiguity ? (
+                      /* ── Ambiguous state: thought shown, user picks same or different ── */
+                      <div className="space-y-4">
                         <div
-                          className="mb-4 rounded-xl px-4 py-3"
+                          className="rounded-xl px-4 py-3"
                           style={{
                             background: "oklch(0.96 0.012 310 / 0.5)",
                             border: "1px solid oklch(0.84 0.03 310 / 0.5)",
@@ -1297,68 +1620,142 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                             className="text-xs font-semibold uppercase tracking-wider mb-1"
                             style={{ color: "oklch(0.46 0.08 310)" }}
                           >
-                            Still exploring
+                            You wrote
                           </p>
                           <p
-                            className="text-sm leading-relaxed"
-                            style={{ color: "oklch(0.30 0.06 310)" }}
+                            className="text-sm leading-relaxed font-medium"
+                            style={{ color: "oklch(0.22 0.018 248)" }}
                           >
-                            &ldquo;{analysis.situation}&rdquo;
+                            &ldquo;{situationAmbiguity.pendingThought}&rdquo;
                           </p>
                         </div>
-                      )}
-
-                      <textarea
-                        data-ocid="thought_page.next_thought.textarea"
-                        value={thought}
-                        onChange={(e) => {
-                          setThought(e.target.value);
-                          if (guidanceMessage) setGuidanceMessage(null);
-                          if (validationMessage) setValidationMessage("");
-                        }}
-                        placeholder="What is your mind telling you now…"
-                        className="h-36 md:h-32 w-full rounded-xl p-4 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none"
-                        style={{
-                          background: "oklch(1 0 0)",
-                          border: "1.5px solid oklch(0.82 0.03 310 / 0.7)",
-                        }}
-                      />
-                    </div>
-                    {/* Inline feedback — guidance or hint from the last submission attempt */}
-                    {(guidanceMessage || hint) && (
-                      <div
-                        className="rounded-xl p-4 text-sm"
-                        style={{
-                          background: "oklch(0.93 0.025 150 / 0.5)",
-                          border: "1px solid oklch(0.72 0.06 150 / 0.6)",
-                          color: "oklch(0.28 0.08 152)",
-                        }}
-                      >
-                        {guidanceMessage || hint}
+                        <p
+                          className="text-base font-semibold leading-snug"
+                          style={{ color: "oklch(0.22 0.018 248)" }}
+                        >
+                          What you wrote feels like it might be about a different situation.
+                        </p>
+                        <p
+                          className="text-sm"
+                          style={{ color: "oklch(0.40 0.025 248)" }}
+                        >
+                          How does this feel to you?
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const pending = situationAmbiguity;
+                              setSituationAmbiguity(null);
+                              processThought(pending.pendingThought, true);
+                            }}
+                            className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
+                            style={{
+                              background: "oklch(0.92 0.05 152 / 0.4)",
+                              border: "1px solid oklch(0.46 0.12 152 / 0.35)",
+                              color: "oklch(0.32 0.09 152)",
+                            }}
+                          >
+                            It&apos;s still about the same thing →
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const pending = situationAmbiguity;
+                              startNewThoughtThread({ threadId: pending.newThreadId });
+                              processThought(pending.pendingThought, true, true);
+                            }}
+                            className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
+                            style={{
+                              background: "oklch(0.96 0.012 310 / 0.4)",
+                              border: "1px solid oklch(0.84 0.03 310 / 0.4)",
+                              color: "oklch(0.39 0.09 310)",
+                            }}
+                          >
+                            This is something different →
+                          </button>
+                        </div>
                       </div>
+                    ) : (
+                      /* ── Normal / analyzing state ── */
+                      <>
+                        <div>
+                          <p
+                            className="text-sm font-semibold uppercase tracking-widest mb-3"
+                            style={{ color: "oklch(0.39 0.09 310)" }}
+                          >
+                            What came up next?
+                          </p>
+
+                          {/* Thread situation anchor */}
+                          {analysis?.situation && (
+                            <div
+                              className="mb-4 rounded-xl px-4 py-3"
+                              style={{
+                                background: "oklch(0.96 0.012 310 / 0.5)",
+                                border: "1px solid oklch(0.84 0.03 310 / 0.5)",
+                              }}
+                            >
+                              <p
+                                className="text-xs font-semibold uppercase tracking-wider mb-1"
+                                style={{ color: "oklch(0.46 0.08 310)" }}
+                              >
+                                Still exploring
+                              </p>
+                              <p
+                                className="text-sm leading-relaxed"
+                                style={{ color: "oklch(0.30 0.06 310)" }}
+                              >
+                                &ldquo;{analysis.situation}&rdquo;
+                              </p>
+                            </div>
+                          )}
+
+                          <textarea
+                            data-ocid="thought_page.next_thought.textarea"
+                            value={thought}
+                            onChange={(e) => {
+                              setThought(e.target.value);
+                              if (guidanceMessage) setGuidanceMessage(null);
+                              if (validationMessage) setValidationMessage("");
+                            }}
+                            disabled={isAnalyzingFollowUp}
+                            placeholder="What is your mind telling you now…"
+                            className="h-36 md:h-32 w-full rounded-xl p-4 text-base text-foreground placeholder:text-[oklch(0.70_0.012_248)] focus:outline-none focus:ring-2 resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+                            style={{
+                              background: "oklch(1 0 0)",
+                              border: "1.5px solid oklch(0.82 0.03 310 / 0.7)",
+                            }}
+                          />
+                        </div>
+                        {/* Inline feedback */}
+                        {(guidanceMessage || hint) && !isAnalyzingFollowUp && (
+                          <div
+                            className="rounded-xl p-4 text-sm"
+                            style={{
+                              background: "oklch(0.93 0.025 150 / 0.5)",
+                              border: "1px solid oklch(0.72 0.06 150 / 0.6)",
+                              color: "oklch(0.28 0.08 152)",
+                            }}
+                          >
+                            {(guidanceMessage || hint || "").split("\n\n").map((para, i) => (
+                              <p key={i} className={i > 0 ? "mt-2" : ""}>{para}</p>
+                            ))}
+                          </div>
+                        )}
+                        <Button
+                          data-ocid="thought_page.next_thought.submit_button"
+                          onClick={() => processThought()}
+                          disabled={isAnalyzingFollowUp || thought.trim().length < 6}
+                          className="w-full rounded-full h-11 text-base font-semibold"
+                          style={{
+                            boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.18)",
+                          }}
+                        >
+                          {isAnalyzingFollowUp ? "Analyzing…" : "Add this thought"}
+                        </Button>
+                      </>
                     )}
-                    {/* Primary — same thread */}
-                    <Button
-                      data-ocid="thought_page.next_thought.submit_button"
-                      onClick={() => processThought()}
-                      disabled={thought.trim().length < 6}
-                      className="w-full rounded-full h-11 text-base font-semibold"
-                      style={{
-                        boxShadow: "0 4px 20px oklch(0.46 0.12 152 / 0.25)",
-                      }}
-                    >
-                      Add this thought
-                    </Button>
-                    {/* Secondary — different situation, new thread */}
-                    <button
-                      type="button"
-                      data-ocid="thought_page.different_situation_button"
-                      onClick={handleDifferentSituation}
-                      className="w-full text-sm font-semibold transition-colors"
-                      style={{ color: "oklch(0.46 0.12 152)" }}
-                    >
-                      This is a different situation →
-                    </button>
                   </motion.div>
                 </div>
               )}

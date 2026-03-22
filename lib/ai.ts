@@ -329,20 +329,43 @@ export async function classifySituationContinuity(
     : "- none -"
 
   const prompt = `
-Determine whether the new thought refers to the same situation as the existing reflection thread.
+The user chose to "add to this thought" — meaning they consciously decided to continue an existing thread. Respect that intent.
 
-Situation:
+Your only job is to catch cases where the new thought is UNMISTAKABLY about a completely different area of life — not just a different angle, emotion, or time period within the same domain.
+
+Situation (the original event being reflected on):
 "${input.situation}"
 
 New thought:
 "${input.thought}"
 
-Previous thoughts:
+Previous thoughts in this thread:
 ${history}
 
-Rules:
-• SAME_SITUATION if the thought is an interpretation, worry, or assumption about the same event.
-• NEW_SITUATION if the thought refers to a completely different life event or topic.
+Return sameSituation: false ONLY IF you are highly confident the new thought belongs to a completely unrelated life domain.
+
+Life domains: career/work, relationships, health, finances, family, self-worth, education, etc.
+
+Return sameSituation: false ONLY when:
+• The new thought is clearly about a different life domain (e.g. situation is about a job interview, new thought is about a fight with a partner)
+
+Return sameSituation: true for everything else, including:
+• Different angle or emotion about the same situation
+• Broader pattern connected to the same domain (e.g. one interview → job search fatigue)
+• Different time period but same life domain
+• Self-doubt or identity beliefs that flow from the same situation
+• Anything where you are not highly confident it is a different domain
+
+When in doubt → return sameSituation: true
+
+Examples:
+Situation: "I have been waiting a month for an interview result"
+Thought: "I am tired of preparing for interviews for 3 months, I think I will never get a job" → sameSituation: true (same domain — career/job search)
+Thought: "My partner and I had a big fight last night" → sameSituation: false (different domain — relationship)
+
+Situation: "My manager gave critical feedback in today's meeting"
+Thought: "I have been struggling at work for years and I'm just not capable" → sameSituation: true (same domain — career, flowing from the same experience)
+Thought: "I have been having chest pains and I'm worried about my heart" → sameSituation: false (different domain — health)
 
 Return JSON only:
 {
@@ -503,8 +526,9 @@ ${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
 ${context}
 
-Scope: analyze ONLY the current thought.
-Do NOT infer deeper beliefs or long-term patterns.
+${previousThoughts.length > 0
+  ? `This is a follow-up thought in an ongoing thread. The situation is already established above.`
+  : `Scope: analyze ONLY the current thought. Do NOT infer deeper beliefs or long-term patterns.`}
 
 You are helping me separate what actually happened from what my mind concluded.
 
@@ -518,12 +542,20 @@ SITUATION (fact)
 • Written in first person.
 
 STORY (automatic thought)
-• The interpretation my mind made about the situation.
-• This must contain ONLY the belief or assumption.
-• Remove any description of the event itself.
-• The "story" must represent the interpretation or belief, not just the emotion.
-• Incorrect story: "I am worried."
-• Correct story: "I might fail the exam."
+• The interpretation or underlying fear my mind is making.
+• This must contain ONLY the belief or assumption — not a restatement of the thought.
+• If the thought is already phrased as an interpretation (e.g. "I may run out of money"),
+  go one level deeper to find what the mind is actually concluding or fearing beneath it.
+• Ask: "What does the person's mind believe will happen — or what does it say about them or their situation?"
+• The story should name the specific feared outcome or conclusion, not just rephrase the concern.
+• Do NOT simply repeat the user's words back verbatim as the story.
+• Do NOT write a mild or hedged version of the concern — name what the mind is really afraid of.
+• Incorrect story: "I am worried." (emotion, not interpretation)
+• Incorrect story: "I may be out of money soon." (verbatim restatement)
+• Incorrect story: "I might not be able to sustain my startup without funding." (too mild — still hedging)
+• Correct story: "My startup will fail if I don't get funding soon." (names the feared outcome directly)
+• Correct story: "I might fail the exam." (the fear beneath the worry)
+• Correct story: "My idea isn't good enough to attract investors." (the belief beneath the anxiety)
 
 Important rule:
 The "situation" field must NEVER be empty.
@@ -572,12 +604,20 @@ Return:
 }
 
 EMOTION RULE
-• Emotions must be single-word labels such as:
+• Emotions must be single-word ADJECTIVE labels — words that can follow "feeling ___".
+• Always use the adjective form, never the noun form.
+• Correct: anxious (NOT anxiety), sad (NOT sadness), hopeless (NOT hopelessness), angry (NOT anger), afraid (NOT fear), overwhelmed (NOT overwhelm)
+• Examples of valid emotion words:
 anxious
 worried
 sad
 disappointed
 embarrassed
+hopeless
+afraid
+overwhelmed
+helpless
+frustrated
 
 Example:
 
@@ -649,6 +689,8 @@ export type RecognitionContext = {
   situation: string
   story: string
   emotion: string
+  previousThoughts?: string[]
+  previousPatterns?: string[]
 }
 
 export type StoryEmotionInput = {
@@ -696,7 +738,8 @@ Rules:
 • Do NOT rewrite or modify it.
 • Only identify emotions.
 • Provide 1–3 short emotion words that capture how I feel (single words only).
-• Describe the emotions using first-person language.
+• Emotions must be ADJECTIVE form — words that can follow "feeling ___".
+• Use: anxious (NOT anxiety), sad (NOT sadness), afraid (NOT fear), angry (NOT anger), hopeless (NOT hopelessness).
 • Emotions must be words only, not phrases or sentences.
 
 Return JSON only.
@@ -725,25 +768,51 @@ export async function generateRecognitionStage(
   context: RecognitionContext
 ): Promise<RecognitionStage> {
 
+  const previousThoughts = context.previousThoughts ?? []
+  const isFollowUp = previousThoughts.length > 0
+
+  const threadBlock = isFollowUp
+    ? `Previous thoughts in this thread:
+${previousThoughts.slice(-5).map((t, i) => `${i + 1}. ${t}`).join("\n")}
+
+This is not the first thought the person has shared about this situation.
+`
+    : ""
+
+  const scopeInstruction = isFollowUp
+    ? `Write a question that builds on what's already been explored in this thread.
+Do not repeat a basic grounding question ("what do you know for certain?") if that territory has already been covered.
+Instead, go one level deeper — ask about the pattern across thoughts, what the person keeps coming back to, or what they're still avoiding looking at.`
+    : `Write a gentle question helping me notice this interpretation.`
+
   const prompt = `
 ${FIRST_PERSON_RULE}
-Scope: analyze ONLY the current thought.
-Do NOT infer deeper beliefs or long-term patterns.
 
-You are a thoughtful friend helping me notice my thinking.
+You are a thoughtful friend helping me slow down and notice my thinking.
 
-The situation I described is:
+The situation:
 "${context.situation}"
 
-SITUATION must describe something a camera could record.
-
-My current interpretation is:
+My current interpretation:
 "${context.story}"
 
-The emotion I feel is:
+The emotion I feel:
 ${context.emotion}
 
-Write a gentle prompt helping me notice this interpretation.
+${threadBlock}
+${scopeInstruction}
+
+Rules for the question:
+- One short, honest question. Not rhetorical.
+- Second person ("you", "your").
+- No clinical or textbook language.
+- Should feel like something a wise friend would ask, not a therapist.
+- Maximum 1 sentence.
+- The question must turn INWARD — it should help the person examine their own thinking, assumption, or belief.
+- Do NOT suggest practical solutions or alternative strategies (e.g. "What if there are other ways to fund this?").
+- Do NOT ask about external possibilities — ask about the person's internal interpretation, what they're assuming, or what they're afraid of.
+- Good examples: "What does not having funding yet mean to you about the startup?" / "What's the worst part of not knowing what comes next?" / "What are you really afraid will happen?"
+- Bad examples: "What if there are other ways to sustain your startup?" (practical, not reflective)
 
 Return ONLY JSON. Do not include any explanation text outside the JSON.
 
@@ -766,6 +835,7 @@ const distortions = [
   "Mind reading",
   "Fortune telling",
   "Catastrophizing",
+  "Uncertainty intolerance",
   "All-or-nothing thinking",
   "Overgeneralization",
   "Emotional reasoning",
@@ -798,6 +868,10 @@ export const PATTERN_DISPLAY: Record<string, {
   "catastrophizing": {
     label: "Imagining the worst case",
     question: "What's the most realistic outcome — not the worst?",
+  },
+  "uncertainty intolerance": {
+    label: "Treating uncertainty as a threat",
+    question: "What can you do right now, without needing to know the outcome?",
   },
   "self criticism": {
     label: "Being hard on yourself",
@@ -892,6 +966,7 @@ export type ThoughtContext = {
   situation: string
   interpretation: string
   emotion: string
+  originalThought?: string
   pattern?: string | null
   previousThoughts?: string[]
   previousPatterns?: string[]
@@ -914,13 +989,18 @@ export async function generatePatternStage(
     context.previousPatterns ?? []
   )
 
+  const isFollowUp = (context.previousThoughts ?? []).length > 0
+
+  const originalThought = context.originalThought?.trim() || null
+
   const prompt = `
 ${THREAD_CONTEXT_BLOCK}
 ${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
 ${contextBlock}
-Scope: analyze ONLY the current thought.
-Do NOT infer deeper beliefs or long-term patterns.
+${isFollowUp
+  ? `This is not the first thought in this thread. When writing the patternMessage, be aware of the full arc of thoughts. If the same pattern is appearing again in a new form, name that — e.g. "this is the same mind doing the same thing from a different angle." If it's a connected but different pattern, note how it builds on what came before.`
+  : `Scope: analyze ONLY the current thought. Do NOT infer deeper beliefs or long-term patterns.`}
 
 You are identifying the thinking pattern behind this interpretation
 and writing a personal message that helps the person notice it.
@@ -930,7 +1010,17 @@ Situation:
 ${situation}
 """
 
-Interpretation:
+${originalThought ? `The person's original thought (exact words they typed):
+"""
+${originalThought}
+"""
+
+CRITICAL: Choose the pattern based on the ORIGINAL THOUGHT above — what the person actually said, in their own words and tone. The "Interpretation" below is a cleaned-up extraction, not what the person said. Use it only for context, not for pattern classification.
+
+If the original thought uses uncertain language ("what will happen", "I don't know", "what if", "maybe") → the pattern is about uncertainty, not catastrophizing.
+If the original thought names a specific bad outcome as likely or certain → only then consider Catastrophizing.
+
+` : ""}Interpretation (for context):
 """
 ${interpretation}
 """
@@ -953,9 +1043,10 @@ Write 1–2 sentences that help the person notice this pattern
 in their own specific thought.
 
 STRICT RULES for patternMessage:
-- Reference something specific from their situation or
-  interpretation — a timeframe, a person, an event,
-  a word they actually used.
+- Reference something specific from the CURRENT THOUGHT — a timeframe,
+  a word, a fact the person mentioned in what they just wrote.
+- If the current thought introduces new context (e.g. "3 months of searching"),
+  use THAT, not the original situation's details.
 - Do NOT write a generic description of the pattern.
 - Do NOT use clinical or textbook language.
 - Do NOT start with "Your mind" every time — vary the opening.
@@ -971,6 +1062,12 @@ Name what the mind jumped to before the facts arrived.
 Focus on the gap between what happened and what was concluded.
 Example: "Three days of silence and you've already written
 the ending — but silence isn't the same as a no."
+
+IMPORTANT disambiguation — Fortune telling vs Overgeneralization:
+Fortune telling = predicting a specific upcoming event ("I won't get this job", "they'll reject me")
+Overgeneralization = using absolute words like "never", "always", "no one", "everyone" to
+declare a permanent truth from limited experience ("I will NEVER get a job", "nothing ever works out")
+If the person used "never", "always", or similar absolute language → choose Overgeneralization, NOT Fortune telling.
 
 Mind reading
 Name what they're assuming about someone else's internal state.
@@ -993,10 +1090,38 @@ Example: "Three months of trying hasn't worked yet —
 but your mind has turned 'not yet' into 'never.'"
 
 Catastrophizing
-Name the jump from uncertain to worst-case outcome.
+ONLY choose this when the person has explicitly stated or strongly implied
+a specific bad outcome — not just expressed general worry or open-ended uncertainty.
+The person must have named or clearly implied the disaster (e.g. "I'll fail", "this is over",
+"I'll lose everything", "my startup will collapse").
+NEVER choose catastrophizing for statements using uncertain language like:
+"I may...", "I might...", "I could...", "I wonder if...", "what will happen..."
+These are uncertainty, not catastrophizing — use Uncertainty intolerance or Fortune telling instead.
+A clear test: has the person stated a specific bad outcome as if it's likely or certain? If they used
+"may" or "might", the answer is no — they're sitting in uncertainty, not predicting disaster.
+Name the jump from uncertain to a specific worst-case outcome.
 Focus on how many steps the mind skipped to get there.
 Example: "Your mind went from uncertainty straight to
 the worst possible ending — skipping everything in between."
+
+Disambiguation examples:
+"I may be out of money soon" → Uncertainty intolerance (not catastrophizing — "may" = sitting in fear of the unknown)
+"I am going to run out of money and lose everything" → Catastrophizing (specific outcome stated as likely)
+"I will never get a job" → Overgeneralization (not catastrophizing — "never" is a permanent verdict from limited experience, not a worst-case escalation chain)
+"I'll never get a job, I'll end up with nothing, my life is over" → Catastrophizing (escalating chain of worst outcomes)
+
+Uncertainty intolerance
+Choose this when the distress is coming from not knowing the outcome,
+rather than from predicting a specific bad one. The person is treating
+the open question itself as unbearable, not necessarily expecting disaster.
+Common signals: "what will happen?", "I don't know what's next",
+"I can't stand not knowing", or any thought where the anxiety is about
+uncertainty itself rather than a specific feared outcome.
+Name the discomfort with not knowing, and the mind's urge to resolve it.
+Focus on how the uncertainty — not any specific outcome — is the thing
+the mind is reacting to.
+Example: "No funding yet, and your mind is treating the open question
+itself as the threat — as if not knowing is the same as knowing it goes badly."
 
 Comparison thinking
 Name what they're measuring themselves against and why
@@ -1076,13 +1201,27 @@ export async function generateBalancedStage(
     context.previousPatterns ?? []
   )
 
+  const isFollowUp = (context.previousThoughts ?? []).length > 0
+
   const prompt = `
 ${THREAD_CONTEXT_BLOCK}
 ${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
 ${contextBlock}
-Scope: analyze ONLY the current thought.
-Do NOT infer deeper beliefs or long-term patterns.
+${isFollowUp
+  ? `This is not the first thought in this thread. The previous thoughts are listed above.
+
+CRITICAL RULE: Do NOT write a balanced perspective that only addresses the current thought in isolation.
+You must synthesize the full arc of thoughts in this thread.
+
+How to do this:
+- Notice the spiral: what has the person's mind been doing across all their thoughts?
+- Name the overall fear or pattern they keep circling back to, not just the latest thought
+- Offer a calm, realistic perspective that speaks to the whole picture
+
+The response should feel like: "I notice I've been going deeper into the same fear across all these thoughts — first X, then Y, now Z. But what's actually true is..."
+NOT like: "I feel anxious about [current thought]. It's possible I'm jumping to conclusions."`
+  : `Scope: analyze ONLY the current thought. Do NOT infer deeper beliefs or long-term patterns.`}
 
 You are helping me slow down and think about my interpretation in a calmer way.
 
@@ -1145,6 +1284,10 @@ Balanced perspective guidelines:
    a few days is within normal response time — add it as a third sentence.
    Only include this if it is factually grounded in the situation.
    Do not invent facts.
+   IMPORTANT: Do NOT use generic industry statistics or platitudes as grounding facts.
+   Bad example: "Many startups take a while to secure funding." (generic, impersonal)
+   Bad example: "Most founders face this at some point." (reassurance, not grounding)
+   Good example: "I haven't heard back yet, but I haven't been rejected either." (specific to the actual situation)
 
 Total: 2–3 short sentences maximum.
 

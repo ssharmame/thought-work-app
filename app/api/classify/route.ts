@@ -1,4 +1,4 @@
-import { classifyInput } from "@/lib/ai"
+import { classifyInput, classifySituationContinuity } from "@/lib/ai"
 import { detectSelfHarm } from "@/services/safety.service"
 import { handleClassification } from "@/services/decision.service"
 import { validateInput } from "@/services/validation.service"
@@ -24,7 +24,7 @@ const fallbackGuidanceMessage =
  */
 export async function POST(req: Request) {
   try {
-    const { thought } = await req.json()
+    const { thought, situation, previousThoughts } = await req.json()
 
     if (!thought || typeof thought !== "string") {
       return Response.json({
@@ -102,6 +102,29 @@ export async function POST(req: Request) {
         message:
           "Please describe what your mind is telling you about the situation.",
       })
+    }
+
+    // Continuity check — runs only when thread context is provided (2nd+ thought in a thread).
+    // If the new thought is about a different situation, return early before any analysis runs.
+    // The frontend will show the ambiguity card and only call process-thought after the user decides.
+    if (
+      typeof situation === "string" &&
+      situation.trim().length > 0 &&
+      Array.isArray(previousThoughts) &&
+      previousThoughts.length >= 1
+    ) {
+      try {
+        const continuity = await classifySituationContinuity({
+          situation: situation.trim(),
+          thought: normalizedThought,
+          threadHistory: previousThoughts,
+        })
+        if (!continuity.sameSituation) {
+          return Response.json({ status: "different_situation" })
+        }
+      } catch {
+        // Continuity check failed — proceed normally, don't block the user
+      }
     }
 
     return Response.json({ status: "continue" })
