@@ -1112,7 +1112,7 @@ function AboutSection() {
                 <p className="font-semibold text-foreground text-lg">Sunil Sharma</p>
                 <p className="text-sm text-muted-foreground mb-2">Builder, ThoughtLens.ai</p>
                 <a
-                  href="https://www.linkedin.com/in/sunilsharma"
+                  href="https://www.linkedin.com/in/sunil-sharma-21306255/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-wide transition-colors"
