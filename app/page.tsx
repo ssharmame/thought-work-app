@@ -1184,11 +1184,11 @@ function ContactSection() {
               a therapist or mental health professional curious about ThoughtLens.ai — reach out directly.
             </p>
             <a
-              href="mailto:hello@thoughtlens.ai"
+              href="mailto:hello@thoughtlensai.com"
               className="inline-flex items-center gap-2 text-base font-semibold transition-colors"
               style={{ color: "oklch(0.46 0.12 152)" }}
             >
-              hello@thoughtlens.ai
+              hello@thoughtlensai.com
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>
