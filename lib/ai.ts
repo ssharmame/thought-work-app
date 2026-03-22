@@ -805,14 +805,18 @@ ${scopeInstruction}
 Rules for the question:
 - One short, honest question. Not rhetorical.
 - Second person ("you", "your").
-- No clinical or textbook language.
-- Should feel like something a wise friend would ask, not a therapist.
-- Maximum 1 sentence.
-- The question must turn INWARD — it should help the person examine their own thinking, assumption, or belief.
-- Do NOT suggest practical solutions or alternative strategies (e.g. "What if there are other ways to fund this?").
-- Do NOT ask about external possibilities — ask about the person's internal interpretation, what they're assuming, or what they're afraid of.
-- Good examples: "What does not having funding yet mean to you about the startup?" / "What's the worst part of not knowing what comes next?" / "What are you really afraid will happen?"
-- Bad examples: "What if there are other ways to sustain your startup?" (practical, not reflective)
+- Maximum 1 sentence. Short. Plain language.
+- The question must turn INWARD — help the person examine what they're afraid of, assuming, or believing underneath.
+- Do NOT suggest practical solutions or external alternatives.
+- Do NOT use formal or clinical phrasing like "What does it mean to you to feel like..." or "How do you interpret..." or "In what way does this...".
+- Write the way a close friend would actually speak — simple, warm, direct.
+- If the emotion is grief, loss, or involves a loved one: ask something grounding ("What do you actually know about how she feels right now?") — do NOT amplify the fear by echoing it back as a question.
+- If the emotion is anxiety or worry about outcomes: ask what the person is really afraid of underneath ("What's the worst part of this for you?" / "What are you really afraid this means?").
+- Bad: "What does it mean to you to feel like your daughter might forget you?" (clinical, echoes the fear, makes it worse)
+- Bad: "What if there are other ways to sustain your startup?" (practical, not reflective)
+- Good: "What do you actually know about how she feels about you right now?" (grounding, warm)
+- Good: "What are you most afraid this means?" (simple, direct, opens the belief)
+- Good: "What's the part of this that scares you most?" (human, not clinical)
 
 Return ONLY JSON. Do not include any explanation text outside the JSON.
 
