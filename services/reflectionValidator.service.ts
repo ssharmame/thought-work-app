@@ -68,6 +68,7 @@ function validateFactStory(stage: FactStoryStage) {
 
 function validateRecognition(stage: RecognitionStage) {
   if (!stage.prompt) return false
+  if (!stage.prompt.trim().endsWith("?")) return false
   if (!Array.isArray(stage.suggestions)) return false
   return stage.suggestions.length > 0
 }
@@ -99,7 +100,7 @@ export const fallbackFactStoryStage: FactStoryStage = {
 export const fallbackRecognitionStage: RecognitionStage = {
   stage: "recognition",
   prompt:
-    "When your mind says this thought, what feels closest to your experience?",
+    "What do you actually know for certain right now?",
   suggestions: [
     "Maybe I'm assuming the worst",
     "I'm probably overthinking this",

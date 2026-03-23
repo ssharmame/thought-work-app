@@ -11,65 +11,70 @@ const safetyMessage =
 export async function handleClassification(
   type: string,
   text: string,
-  valid: boolean
+  valid: boolean,
+  situation?: string | null
 ): Promise<DecisionResult> {
   const normalized = (type || "").toUpperCase().trim()
   switch (normalized) {
     case "THOUGHT": {
-      const thoughtIntent = await classifyThoughtIntent(text)
-      if (thoughtIntent.shouldRunReflection) {
+      const thoughtIntent = await classifyThoughtIntent(text, situation)
+      if (thoughtIntent.shouldRunReflection && thoughtIntent.hasContext !== false) {
         return { status: "continue" }
       }
       return {
         status: "guidance",
         message:
           thoughtIntent.message ||
-          "When this happened, did any worrying thought or concern come to mind?",
+          (thoughtIntent.hasContext === false
+            ? "That sounds like a heavy thought to carry. Sometimes thoughts like this come from something that happened recently. Was there a moment or situation that brought this up for you?"
+            : "Got it. What are you most worried this means?"),
       }
     }
     case "SELF_HARM_RISK":
       return { status: "safety", message: safetyMessage }
     case "SOLUTION_SEEKING":
       if (valid) {
-        const thoughtIntent = await classifyThoughtIntent(text)
-        if (thoughtIntent.shouldRunReflection) {
+        const thoughtIntent = await classifyThoughtIntent(text, situation)
+        if (thoughtIntent.shouldRunReflection && thoughtIntent.hasContext !== false) {
           return { status: "continue" }
         }
         return {
           status: "guidance",
           message:
             thoughtIntent.message ||
-            "When this happened, did any worrying thought or concern come to mind?",
+            (thoughtIntent.hasContext === false
+              ? "That sounds like a heavy thought to carry. Sometimes thoughts like this come from something that happened recently. Was there a moment or situation that brought this up for you?"
+              : "Got it. What are you most worried this means?"),
         }
       }
       return {
         status: "guidance",
         message:
-          "ThoughtLens focuses on understanding the thought behind a situation rather than giving advice. What thought or concern is on your mind right now?",
+          "It makes sense to want a solution here.\n\nBefore we get there, can we look at what your mind is saying about this?",
       }
     case "SITUATION":
       return {
         status: "guidance",
         message:
-          "What you wrote describes a situation rather than a thought about it.\n\nThoughtLens works with the story your mind creates — not the situation itself.\n\nWhat did your mind tell you this means?",
+          "That sounds really stressful to sit with.\n\nWhen you think about this, what does your mind say it means?",
       }
     case "EMOTIONAL_EXPRESSION":
       return {
         status: "guidance",
         message:
-          "What you wrote describes how you're feeling rather than the thought behind it.\n\nEmotions are real — but they're usually triggered by a specific thought.\n\nWhat is your mind telling you that's making you feel this way?",
+          "That feeling makes sense.\n\nOften there's a specific worry underneath — what are you most afraid might be true here?",
       }
     case "GENERAL_QUESTION":
       return {
         status: "guidance",
         message:
-          "ThoughtLens works with personal thoughts — the interpretations and conclusions your mind draws about your own life.\n\nWhat is your mind telling you about a situation you're in?",
+          "We can look at this together — is there something in your own situation that's been worrying you lately?",
       }
     default:
       return {
         status: "guidance",
         message:
-          "We couldn't quite identify a clear thought here.\n\nTry describing what your mind is making of the situation — not just what happened, but what you concluded from it.",
+          "It might help to focus on the worry underneath — something like 'maybe I'm not good enough' or 'what if this goes wrong?'",
       }
   }
 }

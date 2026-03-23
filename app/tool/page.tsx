@@ -33,18 +33,6 @@ function toEmotionAdjective(emotion: string): string {
   return EMOTION_NOUN_TO_ADJECTIVE[lower] ?? lower
 }
 
-const placeholderExamples = [
-  "It's been 3 days since my interview — maybe I wasn't selected",
-  "They haven't replied to my message — maybe they're upset with me",
-  "They saw my text but didn't respond — maybe they're losing interest",
-  "I said something awkward earlier — now they probably think I'm weird",
-  "Everyone else seems more confident than me",
-  "Maybe I'm just not good enough for this",
-  "My parents sounded disappointed — maybe I let them down",
-  "What if this headache means something serious",
-  "What if I fail again like last time",
-  "Maybe people only tolerate me, they don't actually like me",
-];
 
 type ThoughtAnalysisResult = {
   situation: string;
@@ -183,11 +171,10 @@ const buildAnalysisCards = (
     patternValue
       ? {
           key: "pattern",
-          title: "A thinking pattern that might be happening",
+          title: "How my mind works in moments like this",
           value: patternValue,
           style: INSIGHT_CARD_STYLES.pattern,
           patternKey: analysis.pattern ?? undefined,
-          question: analysis.reflectionQuestion?.trim() || undefined,
         }
       : null,
     {
@@ -195,6 +182,7 @@ const buildAnalysisCards = (
       title: "A more balanced way to see this",
       value: analysis.balancedThought ?? "",
       style: INSIGHT_CARD_STYLES.balanced,
+      question: analysis.reflectionQuestion?.trim() || undefined,
     },
   ];
   return cards.filter((card): card is AnalysisCard => card !== null);
@@ -243,20 +231,7 @@ function InsightCard({ title, value, style, patternKey, question }: InsightCardP
           <p className="text-base leading-relaxed text-foreground mb-4">
             {value}
           </p>
-          {/* Reflection question — dynamic (thread-aware) when available, static fallback */}
-          {sitWithQuestion && (
-            <div className="mt-3">
-              <p
-                className="text-xs font-semibold tracking-wide mb-1"
-                style={{ color: style.dot, opacity: 0.75 }}
-              >
-                Something to sit with
-              </p>
-              <p className="text-sm leading-relaxed italic" style={{ color: "oklch(0.42 0.025 248)" }}>
-                {sitWithQuestion}
-              </p>
-            </div>
-          )}
+          {/* Reflection question moved to standalone beat before clarity check */}
         </>
       ) : (
         <>
@@ -271,6 +246,17 @@ function InsightCard({ title, value, style, patternKey, question }: InsightCardP
               ? `This thought left you feeling ${toEmotionAdjective(value)}.`
               : value}
           </p>
+          {question && (
+            <>
+              <div
+                className="my-4"
+                style={{ borderTop: `1px solid ${style.border}` }}
+              />
+              <p className="text-sm leading-relaxed italic" style={{ color: "oklch(0.48 0.025 248)" }}>
+                {question}
+              </p>
+            </>
+          )}
         </>
       )}
     </div>
@@ -438,7 +424,7 @@ function InsightSummary({
             className="text-xs font-semibold tracking-wide"
             style={{ color: "oklch(0.50 0.08 260)" }}
           >
-            The pattern
+            How your mind works
           </p>
           <p className="text-base leading-relaxed text-foreground">
             {patternSummaryText}
@@ -537,7 +523,6 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
   } | null>(null);
   const [isAnalyzingFollowUp, setIsAnalyzingFollowUp] = useState(false);
   const [insightUnlocked, setInsightUnlocked] = useState(false);
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const visitorIdRef = useRef("");
   const sessionIdRef = useRef("");
   const threadIdRef = useRef("");
@@ -596,16 +581,6 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     if (initializeContext()) setContextReady(true);
   }, []);
 
-  useEffect(() => {
-    const id = window.setInterval(
-      () =>
-        setPlaceholderIndex(
-          (current) => (current + 1) % placeholderExamples.length,
-        ),
-      4000,
-    );
-    return () => window.clearInterval(id);
-  }, []);
 
   const handleClarificationQuestion = (question: string) => {
     setClarification(null);
@@ -882,7 +857,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     // Continue button labels per group
     const CONTINUE_LABELS: Record<number, string> = {
       1: "I see — what did my mind make of this?",
-      2: "What thinking pattern is this?",
+      2: "Why does my mind do this?",
       3: "Show me a clearer way to see this",
     }
 
@@ -1108,7 +1083,6 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     )
   };
 
-  const placeholderExample = placeholderExamples[placeholderIndex];
   const inlineMessage = guidanceMessage ?? validationMessage ?? hint;
   const orderedThoughtsForTimeline = useMemo(
     () =>
@@ -1159,10 +1133,10 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         <FadeUp>
           <header className="text-center space-y-2 md:space-y-3">
             <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-semibold text-foreground text-balance leading-tight">
-              What is your mind telling you?
+              What&apos;s been on your mind?
             </h1>
             <p className="text-sm sm:text-base md:text-lg" style={{ color: "oklch(0.48 0.020 248)" }}>
-              Share the thought — not just what happened, but what you&apos;re making of it.
+              The fear, the spiral, the worry that keeps coming back.
             </p>
           </header>
         </FadeUp>
@@ -1185,16 +1159,18 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                     if (validationMessage) setValidationMessage("");
                   }}
                   onBlur={handleThoughtBlur}
-                  placeholder={placeholderExample}
-                  className="h-40 md:h-36 w-full rounded-2xl p-5 text-base text-foreground placeholder:text-[oklch(0.70_0.012_248)] focus:outline-none focus:ring-2 resize-none"
+                  placeholder="Something that's been weighing on you…"
+                  className="h-40 md:h-36 w-full rounded-2xl p-5 text-base text-foreground placeholder:text-[oklch(0.70_0.012_248)] focus:outline-none focus:ring-2 resize-none transition-all duration-200"
                   style={{
                     background: "oklch(1 0 0)",
-                    border: "1.5px solid oklch(0.78 0.025 88)",
+                    border: guidanceMessage
+                      ? "1.5px solid oklch(0.55 0.12 152)"
+                      : "1.5px solid oklch(0.78 0.025 88)",
+                    boxShadow: guidanceMessage
+                      ? "0 0 0 3px oklch(0.82 0.08 152 / 0.28)"
+                      : "none",
                   }}
                 />
-                <p className="mt-2 text-xs" style={{ color: "oklch(0.58 0.015 248)" }}>
-                  Whatever you&apos;re feeling right now makes sense. Let&apos;s slow it down together.
-                </p>
               </div>
               {inlineMessage && (
                 <div
@@ -1209,6 +1185,11 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   {inlineMessage.split("\n\n").map((para, i) => (
                     <p key={i} className={i > 0 ? "mt-2" : ""}>{para}</p>
                   ))}
+                  {guidanceMessage && (
+                    <p className="mt-2 text-xs font-semibold" style={{ color: "oklch(0.38 0.10 152)" }}>
+                      ↑ Type your answer above, then continue
+                    </p>
+                  )}
                 </div>
               )}
               <Button
@@ -1221,7 +1202,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.25)",
                 }}
               >
-                Understand this thought
+                {guidanceMessage ? "Continue" : "Explore this"}
               </Button>
               <p className="text-xs text-center" style={{ color: "oklch(0.65 0.010 248)" }}>
                 This is a thinking tool, not therapy.
@@ -1682,10 +1663,10 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                       <>
                         <div>
                           <p
-                            className="text-sm font-semibold uppercase tracking-widest mb-3"
+                            className="text-sm font-semibold tracking-wide mb-3"
                             style={{ color: "oklch(0.39 0.09 310)" }}
                           >
-                            What came up next?
+                            What else is coming up?
                           </p>
 
                           {/* Thread situation anchor */}
@@ -1721,7 +1702,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                               if (validationMessage) setValidationMessage("");
                             }}
                             disabled={isAnalyzingFollowUp}
-                            placeholder="What is your mind telling you now…"
+                            placeholder="What's coming up for you now…"
                             className="h-36 md:h-32 w-full rounded-xl p-4 text-base text-foreground placeholder:text-[oklch(0.70_0.012_248)] focus:outline-none focus:ring-2 resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                             style={{
                               background: "oklch(1 0 0)",
@@ -1753,7 +1734,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                             boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.18)",
                           }}
                         >
-                          {isAnalyzingFollowUp ? "Analyzing…" : "Add this thought"}
+                          {isAnalyzingFollowUp ? "Analyzing…" : "Go deeper"}
                         </Button>
                       </>
                     )}

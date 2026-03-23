@@ -45,7 +45,7 @@ const safetyMessage =
   "I'm really sorry you're feeling this way. You don't have to go through this alone. If you're in immediate danger, please contact local emergency services or a crisis support line."
 
 const fallbackGuidanceMessage =
-  "Something went wrong while processing your thought. Please try again."
+  "Something went wrong on our end. Please try again."
 
 function createGuidanceResponse(message: string) {
   return {
@@ -152,13 +152,13 @@ async function safeGenerateStage<T>(
   }
 }
 
-async function runClassificationWithRetry(text: string) {
+async function runClassificationWithRetry(text: string, situation?: string | null) {
   let lastError: unknown
 
   // Classification is cheap but critical for routing, so we retry once before failing.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      return await classifyInput(text)
+      return await classifyInput(text, situation)
     } catch (error) {
       lastError = error
       console.error("classification attempt failed", attempt + 1, error)
@@ -199,10 +199,26 @@ export async function POST(req: Request) {
       )
     }
 
+    // Pre-fetch existing situation when a threadId is present so the classifier
+    // has context for short follow-up inputs like "what about cameras?"
+    const requestedThreadIdEarly =
+      typeof threadId === "string" && threadId.trim().length > 0
+        ? threadId.trim()
+        : null
+    let earlyThreadSituation: string | null = null
+    if (requestedThreadIdEarly) {
+      try {
+        const earlyContext = await fetchThreadContext(requestedThreadIdEarly)
+        earlyThreadSituation = earlyContext.situation?.trim() || null
+      } catch {
+        // If early fetch fails, proceed without context — not critical
+      }
+    }
+
     let classification
 
     try {
-      classification = await runClassificationWithRetry(normalizedThought)
+      classification = await runClassificationWithRetry(normalizedThought, earlyThreadSituation)
     } catch (error) {
       console.error("intent classification failed", error)
 
@@ -214,7 +230,8 @@ export async function POST(req: Request) {
     const decision = await handleClassification(
       classification.type,
       normalizedThought,
-      classification.valid
+      classification.valid,
+      earlyThreadSituation
     )
 
     if (decision.status === "guidance") {
@@ -236,7 +253,7 @@ export async function POST(req: Request) {
     if (!classificationValid) {
       return Response.json(
         createGuidanceResponse(
-          "Please describe what your mind is telling you about the situation."
+          "Can you share a bit more? Tell us the worry or fear underneath — what's your mind telling you?"
         )
       )
     }

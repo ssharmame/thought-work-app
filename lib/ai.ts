@@ -114,6 +114,7 @@ type ThoughtIntentType =
 export type ThoughtIntentResult = {
   type: ThoughtIntentType
   shouldRunReflection: boolean
+  hasContext: boolean
   message: string | null
 }
 
@@ -203,9 +204,12 @@ export function inferEmotionFromText(text: string): string | null {
   return null
 }
 
-export async function classifyInput(text: string): Promise<ClassificationResult> {
-  const prompt = `${classificationInstructions}
+export async function classifyInput(text: string, situation?: string | null): Promise<ClassificationResult> {
+  const contextSection = situation?.trim()
+    ? `\nThread context (the situation already established in this conversation):\n"""${situation.trim()}"""\n`
+    : ""
 
+  const prompt = `${classificationInstructions}${contextSection}
 User input:
 """
 ${text.trim()}
@@ -216,7 +220,8 @@ ${text.trim()}
 }
 
 export async function classifyThoughtIntent(
-  text: string
+  text: string,
+  situation?: string | null
 ): Promise<ThoughtIntentResult> {
   const prompt = `
 You are classifying a user's statement for a reflection tool.
@@ -272,10 +277,16 @@ Important rules:
 3. Only choose GOAL_OR_DESIRE if the user is describing a life goal or aspiration.
 4. Do NOT classify balanced reflections as goals.
 
+Also assess whether the input contains a contextual anchor — a specific person, relationship, event, action, or time reference that the thought is attached to.
+
+hasContext = true: Input mentions something specific (e.g. "my boss", "the interview", "3 days ago", "I sent a message")
+hasContext = false: Input is a floating fear or worry with no anchor (e.g. "Maybe I'm not good enough", "What if I fail", "I always mess things up")
+
 Return JSON:
 {
 "type": "",
 "shouldRunReflection": true,
+"hasContext": true,
 "message": ""
 }
 
@@ -283,35 +294,37 @@ Rules:
 
 DISTORTED_THOUGHT
 A worrying interpretation or assumption about a situation.
-shouldRunReflection = true
-message = null
+shouldRunReflection = true (only if hasContext = true)
+shouldRunReflection = false (if hasContext = false — context is needed first)
+message = null (if hasContext = true)
+message = "That sounds like a heavy thought to carry. Sometimes thoughts like this come from something that happened recently. Was there a moment or situation that brought this up for you?" (if hasContext = false)
 
 BALANCED_THOUGHT
 A thought that already sounds reasonable or reflective.
 shouldRunReflection = false
 message =
-"Your thought already seems balanced and reflective. If another worrying thought or concern comes up about this situation, you can share it here."
+"That actually sounds like a healthy way to look at it. If a fear or worry about this comes up, feel free to share that instead."
 
 GOAL_OR_DESIRE
 A statement about something the person wants to do or achieve.
 shouldRunReflection = false
 message =
-"It sounds like you're thinking about a goal. When you imagine taking that step, does any worrying thought or doubt come to mind?"
+"That sounds exciting. When you imagine actually doing it, does any fear or worry come up?"
 
 SITUATION_ONLY
 A description of what happened without an interpretation.
 shouldRunReflection = false
 message =
-"When this happened, did any worrying thought or concern come to mind?"
+"That sounds like it's been sitting with you. When you think about it, what does your mind say it means?"
 
 EMOTION_ONLY
 A feeling without a clear thought about the situation.
 shouldRunReflection = false
 message =
-"When you feel this way, what worrying thought usually comes to mind?"
+"That feeling makes sense. What are you most afraid might be true when you feel like this?"
 
 Return JSON only.
-
+${situation?.trim() ? `\nThread context (situation already established):\n"""${situation.trim()}"""\nUse this context when classifying — a short or vague follow-up is likely a related thought, not a general question.\n` : ""}
 Input:
 """
 ${text.trim()}
@@ -802,21 +815,37 @@ ${context.emotion}
 ${threadBlock}
 ${scopeInstruction}
 
+This question appears AFTER the person has already seen their full analysis — the fact, the story, the pattern, the balanced view. It sits just before they decide whether to go deeper.
+
+Its purpose is to create a small moment of pause. A gentle step back. Not to dive deeper into the fear — to create just enough distance to see it more clearly.
+
 Rules for the question:
 - One short, honest question. Not rhetorical.
 - Second person ("you", "your").
 - Maximum 1 sentence. Short. Plain language.
-- The question must turn INWARD — help the person examine what they're afraid of, assuming, or believing underneath.
-- Do NOT suggest practical solutions or external alternatives.
-- Do NOT use formal or clinical phrasing like "What does it mean to you to feel like..." or "How do you interpret..." or "In what way does this...".
 - Write the way a close friend would actually speak — simple, warm, direct.
-- If the emotion is grief, loss, or involves a loved one: ask something grounding ("What do you actually know about how she feels right now?") — do NOT amplify the fear by echoing it back as a question.
-- If the emotion is anxiety or worry about outcomes: ask what the person is really afraid of underneath ("What's the worst part of this for you?" / "What are you really afraid this means?").
-- Bad: "What does it mean to you to feel like your daughter might forget you?" (clinical, echoes the fear, makes it worse)
-- Bad: "What if there are other ways to sustain your startup?" (practical, not reflective)
-- Good: "What do you actually know about how she feels about you right now?" (grounding, warm)
-- Good: "What are you most afraid this means?" (simple, direct, opens the belief)
-- Good: "What's the part of this that scares you most?" (human, not clinical)
+- Do NOT amplify or echo the fear back at them. Do NOT ask what scares them most or what they're most afraid of.
+- Do NOT use formal or clinical phrasing.
+- Do NOT suggest practical solutions.
+- NEVER use generic references like "this thought" or "that thought" — always name the actual thought using the person's own words. Example: instead of "When your mind says this thought…" write "When your mind says 'I might get a speeding ticket'…"
+
+The question should do ONE of these things:
+1. Create distance: help them see the thought from the outside ("What would you tell a friend who was thinking 'I might get a speeding ticket'?")
+2. Ground in reality: bring them back to what's actually known ("What do you actually know for certain right now?")
+3. Gently open the belief: point toward what assumption is underneath, without amplifying the anxiety ("What does thinking 'I might not get the job' say about what you expect from yourself?")
+
+Good examples:
+- "What would you tell a close friend who had this exact thought?"
+- "What do you actually know for certain right now?"
+- "Is there anything about this situation you might not be seeing fully?"
+- "What would it look like to hold this thought a little more loosely?"
+- "What do you know about how she feels about you right now?" (for relationship fears)
+
+Bad examples:
+- "What are you most afraid this means for the future?" (amplifies fear)
+- "What's the part of this that scares you most?" (amplifies fear)
+- "What does it mean to you to feel like..." (clinical, convoluted)
+- "What if there are other ways to..." (practical, not reflective)
 
 Return ONLY JSON. Do not include any explanation text outside the JSON.
 
