@@ -326,7 +326,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="rounded-2xl border border-border bg-background/85 px-5 py-5">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">What's been showing up</p>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">What&rsquo;s been showing up</p>
               <p className="mt-3 text-sm leading-7 text-foreground">{sessionFocus.summary}</p>
             </div>
             <div className="rounded-2xl border border-border bg-background/85 px-5 py-5">

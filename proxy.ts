@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { getPublicSupabaseEnv, hasPublicSupabaseEnv } from "@/lib/supabase/config"
 
 type CookieToSet = {
   name: string
@@ -13,12 +14,18 @@ const PROTECTED_ROUTES = ["/dashboard", "/onboarding", "/history"]
 // Routes only for unauthenticated users (redirect away if logged in)
 const AUTH_ROUTES = ["/auth/login", "/auth/check-email"]
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  if (!hasPublicSupabaseEnv()) {
+    return supabaseResponse
+  }
+
+  const { url, anonKey } = getPublicSupabaseEnv()
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {

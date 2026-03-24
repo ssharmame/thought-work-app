@@ -3,6 +3,8 @@
 
 @layer base {
   :root {
+    --font-sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+    --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
 
     /* Background */
     --background: 0.977 0.008 88;
@@ -106,7 +108,7 @@
 @layer utilities {
 
   .font-display {
-    font-family: "Fraunces", Georgia, serif;
+    font-family: var(--font-display);
   }
 
   /* Input card — gentle on mobile, more defined on sm+ */
