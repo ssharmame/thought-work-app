@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 // Routes that require authentication
-const PROTECTED_ROUTES = ["/dashboard", "/onboarding"]
+const PROTECTED_ROUTES = ["/dashboard", "/onboarding", "/history"]
 
 // Routes only for unauthenticated users (redirect away if logged in)
 const AUTH_ROUTES = ["/auth/login", "/auth/check-email"]
@@ -48,11 +48,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect authenticated users away from auth pages → tool is the default landing
+  // Redirect authenticated users away from auth pages → route by role
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route))
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone()
-    url.pathname = "/tool"
+    // Role is stored in app_metadata by the onboarding action
+    const role = user.app_metadata?.role ?? user.user_metadata?.role
+    url.pathname = role === "PRACTITIONER" ? "/dashboard" : "/tool"
     return NextResponse.redirect(url)
   }
 

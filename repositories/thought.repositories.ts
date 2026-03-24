@@ -92,6 +92,22 @@ export function buildThoughtEntryData(
   }
 }
 
+// Claims all anonymous threads and thoughts for a visitorId, stamping them
+// with the newly authenticated userId. Called once on first login.
+export async function claimAnonymousSessions(visitorId: string, userId: string) {
+  const [threads, thoughts] = await Promise.all([
+    prisma.thread.updateMany({
+      where: { visitorId, userId: null },
+      data: { userId },
+    }),
+    prisma.thoughtEntry.updateMany({
+      where: { visitorId, userId: null },
+      data: { userId },
+    }),
+  ])
+  return { threadsClaimed: threads.count, thoughtsClaimed: thoughts.count }
+}
+
 export async function getThoughts() {
   return prisma.thoughtEntry.findMany({
     orderBy: {

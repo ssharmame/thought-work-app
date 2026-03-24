@@ -23,6 +23,18 @@ export const patternStageSchema = z.object({
 export const balancedStageSchema = z.object({
   stage: z.literal("balanced"),
   balancedThought: z.string(),
+  steadierWay: z.string(),
+  situationalBelief: z.string().nullable().optional(),
+  situationalBeliefConfidence: z.enum(["medium"]).nullable().optional(),
+  observedAcrossPatterns: z.string().nullable().optional(),
+  beliefType: z.enum(["situational"]).nullable().optional(),
+  whyThisLevel: z.string().nullable().optional(),
+  deeperBelief: z.string().nullable().optional(),
+  deeperBeliefConfidence: z.enum(["low", "strong"]).nullable().optional(),
+  deeperBeliefReason: z.string().nullable().optional(),
+  reasoningBridge: z.string().nullable().optional(),
+  alternativePossibility: z.string().nullable().optional(),
+  beliefExample: z.string().nullable().optional(),
 })
 
 export const nextThoughtStageSchema = z.object({

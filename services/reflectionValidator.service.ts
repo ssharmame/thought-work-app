@@ -40,6 +40,18 @@ export type PatternStage = {
 export type BalancedStage = {
   stage: "balanced"
   balancedThought: string
+  steadierWay: string
+  situationalBelief?: string | null
+  situationalBeliefConfidence?: "medium" | null
+  observedAcrossPatterns?: string | null
+  beliefType?: "situational" | null
+  whyThisLevel?: string | null
+  deeperBelief?: string | null
+  deeperBeliefConfidence?: "low" | "strong" | null
+  deeperBeliefReason?: string | null
+  reasoningBridge?: string | null
+  alternativePossibility?: string | null
+  beliefExample?: string | null
 }
 
 export type NextThoughtStage = {
@@ -82,6 +94,10 @@ function validatePattern(stage: PatternStage) {
 
 function validateBalanced(stage: BalancedStage) {
   if (!stage.balancedThought) return false
+  if (!stage.steadierWay) return false
+  if (stage.reasoningBridge !== undefined && stage.reasoningBridge !== null && !stage.reasoningBridge.trim()) {
+    return false
+  }
   return true
 }
 
@@ -95,7 +111,7 @@ export const fallbackFactStoryStage: FactStoryStage = {
   thought: "",
   situation: "You described a situation that is still unfolding.",
   story: "Your mind may be interpreting this situation in a discouraging way.",
-  emotions: ["uncertainty"],
+  emotions: [],
 }
 
 export const fallbackRecognitionStage: RecognitionStage = {
@@ -179,7 +195,20 @@ export const fallbackPatternStage: PatternStage = {
 export const fallbackBalancedStage: BalancedStage = {
   stage: "balanced",
   balancedThought:
-    "Another way to see this moment could be that the situation is still unfolding.",
+    "This is hard right now.\nBut the thought I am having might not be the full picture.",
+  steadierWay:
+    "This is a really heavy situation to be in.\nIt makes sense this feels hard.",
+  situationalBelief: null,
+  situationalBeliefConfidence: "medium",
+  observedAcrossPatterns: null,
+  beliefType: "situational",
+  whyThisLevel: null,
+  deeperBelief: null,
+  deeperBeliefConfidence: null,
+  deeperBeliefReason: null,
+  reasoningBridge: null,
+  alternativePossibility: null,
+  beliefExample: null,
 }
 
 export const fallbackNextThoughtStage: NextThoughtStage = {

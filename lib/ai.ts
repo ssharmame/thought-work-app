@@ -617,9 +617,12 @@ Return:
 }
 
 EMOTION RULE
-• Emotions must be single-word ADJECTIVE labels — words that can follow "feeling ___".
+• Reuse the person's own emotional words first whenever they named them.
+• If they wrote "empty", "devastated", "numb", "discouraged", or similar, keep those exact words instead of replacing them with broader words like "anxious".
+• Emotions should be short ADJECTIVE labels or very short feeling words that can naturally fit after "feeling ___".
 • Always use the adjective form, never the noun form.
 • Correct: anxious (NOT anxiety), sad (NOT sadness), hopeless (NOT hopelessness), angry (NOT anger), afraid (NOT fear), overwhelmed (NOT overwhelm)
+• If no emotion is explicitly stated or strongly implied, return an empty array instead of inventing a generic feeling.
 • Examples of valid emotion words:
 anxious
 worried
@@ -683,12 +686,7 @@ The situation field must never be empty.
     .map((item) => (typeof item === "string" ? item.trim() : ""))
     .filter((item): item is string => item.length > 0)
 
-  const fallbackEmotion = inferEmotionFromText(cleanedThought)
-
-  const emotions =
-    normalizedEmotions.length > 0
-      ? normalizedEmotions
-      : [fallbackEmotion ?? "anxiety"]
+  const emotions = normalizedEmotions
 
  return {
   ...factStory,
@@ -750,7 +748,10 @@ Rules:
 • The interpretation has already been extracted.
 • Do NOT rewrite or modify it.
 • Only identify emotions.
-• Provide 1–3 short emotion words that capture how I feel (single words only).
+• Reuse the person's exact emotional words first if they already named them.
+• Do NOT replace precise words like "empty" or "devastated" with broader words like "sad" or "anxious".
+• Provide 0–3 short emotion words that capture how I feel.
+• If no emotion is explicitly stated or strongly implied, return an empty array.
 • Emotions must be ADJECTIVE form — words that can follow "feeling ___".
 • Use: anxious (NOT anxiety), sad (NOT sadness), afraid (NOT fear), angry (NOT anger), hopeless (NOT hopelessness).
 • Emotions must be words only, not phrases or sentences.
@@ -766,14 +767,9 @@ Return JSON only.
   const normalizedEmotions = (response.emotions ?? [])
     .map((item) => (typeof item === "string" ? item.trim() : ""))
     .filter((item): item is string => item.length > 0)
-  const fallbackEmotion = inferEmotionFromText(story)
-
   return {
     story,
-    emotions:
-      normalizedEmotions.length > 0
-        ? normalizedEmotions
-        : [fallbackEmotion ?? "anxiety"],
+    emotions: normalizedEmotions,
   }
 }
 
@@ -809,7 +805,7 @@ My current interpretation:
 "${context.story}"
 
 The emotion I feel:
-${context.emotion}
+${context.emotion || "not explicitly named"}
 
 ${threadBlock}
 ${scopeInstruction}
@@ -1007,7 +1003,7 @@ export async function generatePatternStage(
   const situation = context.situation.trim() || "I described an unfolding situation."
   const interpretation =
     context.interpretation.trim() || "A discouraging interpretation of the situation."
-  const emotion = context.emotion.trim() || "uncertainty"
+  const emotion = context.emotion.trim()
   const contextBlock = buildContext(
     context.situation,
     context.previousThoughts ?? [],
@@ -1050,8 +1046,8 @@ If the original thought names a specific bad outcome as likely or certain → on
 ${interpretation}
 """
 
-Emotion:
-${emotion}
+Emotion named by the person:
+${emotion || "not explicitly named"}
 
 STEP 1 — Choose the pattern
 
@@ -1064,7 +1060,7 @@ If none apply, return null for pattern and patternMessage.
 
 STEP 2 — Write a contextual patternMessage
 
-Write 1–2 sentences that help the person notice this pattern
+Write 1 short sentence that helps the person notice this pattern
 in their own specific thought.
 
 STRICT RULES for patternMessage:
@@ -1074,11 +1070,19 @@ STRICT RULES for patternMessage:
   use THAT, not the original situation's details.
 - Do NOT write a generic description of the pattern.
 - Do NOT use clinical or textbook language.
-- Do NOT start with "Your mind" every time — vary the opening.
+- Start with "One way to look at this is:".
+- Use "might" when describing what the mind is doing.
+- Do NOT sound certain or authoritative.
+- Maximum 25 words.
+- Insight only.
+- No advice.
+- No correction.
+- No emotional soothing.
+- Do NOT start with "Your mind" every time after that opening — vary the sentence that follows.
 - If your message could apply to any person in any situation,
   rewrite it until it could not.
 - Write in second person ("you", "your") — warm, not cold.
-- Maximum 2 sentences. Keep it short.
+- Keep it short.
 
 TONE GUIDE — use the style that matches the pattern:
 
@@ -1218,7 +1222,7 @@ export async function generateBalancedStage(
   const situation = context.situation.trim() || "I described an unfolding situation."
   const interpretation =
     context.interpretation.trim() || "A discouraging interpretation of the situation."
-  const emotion = context.emotion.trim() || "uncertainty"
+  const emotion = context.emotion.trim()
   const pattern = context.pattern?.trim() || "not identified"
   const contextBlock = buildContext(
     context.situation,
@@ -1250,6 +1254,21 @@ NOT like: "I feel anxious about [current thought]. It's possible I'm jumping to 
 
 You are helping me slow down and think about my interpretation in a calmer way.
 
+Your job is to write the reflection in distinct layers:
+1. a balanced thought
+2. a steadier way
+3. a situational belief
+4. an optional deeper belief signal
+5. a reasoning bridge
+6. a short belief support block
+
+These have different roles.
+
+Balanced thought = cognitive correction.
+Steadier way = emotional grounding.
+Situational belief = the current prediction or meaning the pattern is shaping.
+Deeper belief = optional low-confidence identity-level signal only if there is clear support.
+
 LANGUAGE STYLE (VERY IMPORTANT)
 
 Write in simple everyday language.
@@ -1270,17 +1289,18 @@ Good tone examples:
 "I may not have the full picture yet."
 "There could be other explanations."
 
-Write 2–3 short sentences.
+Write 2 short sentences maximum.
 Each sentence should express one simple idea.
 
 Avoid:
 • motivational language
 • advice
-• reassurance
+• soothing or comforting language
 • guarantees about the future
-• statements about worth, success, or ability
+• fake positivity like "everything will be fine"
+• positive extremes like "I am amazing" or "this is perfect"
 
-The goal is simply to look at the situation in a calmer and more realistic way.
+The goal is to weaken the negative belief in a believable way, while also giving one simple grounding line.
 
 Situation:
 """
@@ -1295,48 +1315,226 @@ ${interpretation}
 """
 
 Emotion I feel:
-${emotion}
+${emotion || "not explicitly named"}
 
 Thinking pattern:
 ${pattern}
 
-Balanced perspective guidelines:
+SECTION 1 — balancedThought
 
-1. Acknowledge the feeling or uncertainty — one sentence.
-2. Offer a calmer or more realistic alternative interpretation — one sentence.
-3. If there is a specific grounding fact that makes the fear less certain
-   — for example, if someone is waiting for interview results, note that
-   a few days is within normal response time — add it as a third sentence.
-   Only include this if it is factually grounded in the situation.
-   Do not invent facts.
-   CRITICAL: Never introduce facts the person did not explicitly state.
+Purpose:
+Challenge the distorted belief in a realistic way.
+
+Rules:
+1. Maximum 2 sentences.
+2. Include BOTH:
+   - reality
+   - alternative interpretation
+3. Structure:
+   "I [reality].
+   But that doesn't necessarily mean [challenged belief]."
+4. If the person named a feeling, you may include it only if it helps keep the thought believable.
+5. Reuse the person's own words where possible: job, failure, rejection, interview, relationship, funding, etc.
+6. Challenge the core distortion in a believable way.
+   Useful phrases:
+   - "doesn't necessarily mean"
+   - "might not be true"
+   - "is not the full picture"
+7. Stay grounded in the exact situation they described.
+8. Never introduce facts the person did not explicitly state.
    That means:
    - do NOT say they were not rejected unless they said that
    - do NOT say nobody replied unless they said that
    - do NOT say they have or have not applied unless they said that
    - do NOT fill in process details, outcomes, or history
-   If a grounding fact is missing, stay neutral instead of adding one.
+9. If a grounding fact is missing, stay neutral instead of adding one.
    It is better to say "I may not have the full picture yet" than to invent context.
-   IMPORTANT: Do NOT use generic industry statistics or platitudes as grounding facts.
-   Bad example: "Many startups take a while to secure funding." (generic, impersonal)
-   Bad example: "Most founders face this at some point." (reassurance, not grounding)
-   Good example: "I don't know the outcome yet." (neutral, grounded)
+10. Do NOT use generic statistics or platitudes as grounding facts.
+11. Do NOT teach, explain CBT, or sound like a therapist.
+12. The balanced thought must sound like an inner voice a real person could accept.
 
-Total: 2–3 short sentences maximum.
+SECTION 2 — steadierWay
 
-Write the response as if I am thinking this to myself.
+Purpose:
+Help the person emotionally sit with this.
+
+Rules:
+1. 1-2 short sentences.
+2. Validation and grounding only.
+3. No logic, no reframing, no cognitive correction.
+4. No advice.
+5. If the person used emotional words like "empty" or "devastated", reuse them exactly.
+6. Good examples:
+   - "This is a really heavy situation to be in. It makes sense this feels hard."
+   - "Being here for 4 months and feeling devastated is a lot to carry."
+7. Bad examples:
+   - "This doesn't mean you're failing." (too cognitive)
+   - "You'll be okay." (prediction / reassurance)
+
+SECTION 3 — situationalBelief
+
+Purpose:
+Name the belief that is emerging directly from the current pattern.
+
+Rules:
+1. This is REQUIRED.
+2. Keep it grounded in the current situation and pattern.
+3. It must sound like a prediction or conditional meaning, not identity.
+4. Good examples:
+   - "I may not get the outcome I want"
+   - "Things might go wrong"
+   - "This may not work out"
+5. If the pattern is uncertainty + negative prediction, generate a situational belief, NOT a core belief.
+6. Confidence must always be:
+   "medium"
+
+You must also return:
+- observedAcrossPatterns
+- beliefType
+- whyThisLevel
+- alternativePossibility
+- beliefExample
+
+For these fields:
+
+observedAcrossPatterns
+- Briefly name the detected pattern and any support you can see from the current thread.
+- Example:
+  "Fortune telling showing up across repeated negative predictions"
+
+beliefType
+- Always:
+  "situational"
+
+whyThisLevel
+- 1 short line.
+- Explain why this stays at the situational level and does NOT yet justify a deeper/core belief.
+- Example:
+  "This reads more like a prediction about the outcome than a fixed belief about identity."
+
+alternativePossibility
+- 1 short line.
+- Reduce certainty without becoming positive.
+- Example:
+  "This may also reflect a temporary response to prolonged uncertainty rather than a stable belief."
+
+beliefExample
+- REQUIRED.
+- Use one real example from the user's current thought or thread history.
+- Keep it short and direct.
+- Do NOT invent a new example.
+
+SECTION 4 — deeperBelief
+
+Purpose:
+Only surface a possible deeper belief if there is strong enough evidence in the current thought and thread history.
+
+Rules:
+1. This is OPTIONAL.
+2. If there is not enough support, return:
+   - "deeperBelief": null
+   - "deeperBeliefConfidence": null
+   - "deeperBeliefReason": null
+3. If there is some signal, keep it restrained.
+4. The deeper belief must NEVER sound definitive.
+5. Prefix the belief itself with:
+   "This may also be loosely connected to..."
+6. If you include it, default confidence to "low" unless the evidence across this thread is unusually strong.
+7. If confidence is low, the reason must be:
+   "Not enough direct evidence yet, emerging signal only"
+8. Do NOT jump from fortune telling or uncertainty intolerance straight to identity-level conclusions unless the thread strongly supports it.
+
+SECTION 5 — reasoningBridge
+
+Purpose:
+Explain how the detected pattern may be shaping the situational belief.
+
+Rules:
+1. 1-2 lines only.
+2. Keep it logical and grounded.
+3. Focus on patterns -> situational belief first.
+4. Good example:
+   "Repeated negative predictions in uncertain situations may be shaping this belief."
+
+Examples:
+
+Thought: "I am not good enough to find a job"
+balancedThought:
+"I haven't found a job yet, which is hard.
+But that doesn't necessarily mean I'm not good enough."
+
+steadierWay:
+"This is a really heavy place to be in.
+It makes sense this feels hard."
+situationalBelief:
+"I may not get the outcome I want"
+situationalBeliefConfidence:
+"medium"
+deeperBelief:
+"This may also be loosely connected to not feeling good enough."
+deeperBeliefConfidence:
+"low"
+deeperBeliefReason:
+"Not enough direct evidence yet, emerging signal only"
+reasoningBridge:
+"Repeated negative predictions in uncertain situations may be shaping this belief."
+
+Thought: "I always fail"
+balancedThought:
+"I've had some setbacks, which feels discouraging.
+But that doesn't mean I always fail or will keep failing."
+
+steadierWay:
+"Setbacks like this can feel really discouraging.
+It makes sense this lands heavily."
+situationalBelief:
+"This may turn out badly"
+situationalBeliefConfidence:
+"medium"
+deeperBelief:
+null
+deeperBeliefConfidence:
+null
+deeperBeliefReason:
+null
+reasoningBridge:
+"Linking uncertainty to the worst outcome may be shaping this belief."
+
+Write balancedThought as if I am thinking it to myself.
+Write steadierWay like a calm, human reflection.
 
 Before returning the answer ask yourself:
 
-"Would a normal person say it this way?"
+"Would a real person actually believe the balanced thought?"
 
-If it sounds clinical or academic, simplify it.
+If it sounds like advice, reject it.
+If it sounds like a believable inner voice, keep it.
+
+Also check:
+- Does balancedThought feel real, not motivational?
+- Does steadierWay feel calming, not logical?
+- Is situationalBelief grounded in the pattern, not identity-level?
+- Is deeperBelief omitted unless there is enough evidence?
+
+If either sounds clinical or academic, simplify it.
 
 Return JSON only.
 
 {
 "stage": "balanced",
-"balancedThought": ""
+"balancedThought": "",
+"steadierWay": "",
+"situationalBelief": "",
+"situationalBeliefConfidence": "medium",
+"observedAcrossPatterns": "",
+"beliefType": "situational",
+"whyThisLevel": "",
+"deeperBelief": null,
+"deeperBeliefConfidence": null,
+"deeperBeliefReason": null,
+"reasoningBridge": "",
+"alternativePossibility": "",
+"beliefExample": ""
 }
 `
 

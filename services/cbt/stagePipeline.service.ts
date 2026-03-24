@@ -7,7 +7,6 @@ import {
   generateReflectionCompletion,
   generateStoryEmotionStage,
   validateThoughtSuggestions,
-  inferEmotionFromText,
   type ThoughtContext,
 } from "@/lib/ai"
 import {
@@ -71,11 +70,6 @@ export async function buildThoughtStages(
 
   if (thread.situation) {
     situation = thread.situation
-  }
-
-  if (!emotions.length) {
-    const fallback = inferEmotionFromText(thought) ?? "anxiety"
-    emotions = [fallback]
   }
 
   const factStory = factStoryStageSchema.parse({

@@ -44,22 +44,26 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     orderBy: { createdAt: "desc" },
   })
 
-  // Aggregate stats across all clients
-  const totalReflections = await prisma.thoughtEntry.count({
+  const allThoughts = await prisma.thoughtEntry.findMany({
     where: { user: { practitionerId: user.id } },
+    select: {
+      userId: true,
+      thought: true,
+      createdAt: true,
+      pattern: true,
+    },
   })
+  const uniqueThoughts = dedupeExactThoughts(allThoughts)
+  const thoughtsByClient = groupThoughtsByClient(uniqueThoughts)
+
+  // Aggregate stats across all clients
+  const totalReflections = uniqueThoughts.length
 
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-  const activeThisWeek = await prisma.thoughtEntry.count({
-    where: {
-      user: { practitionerId: user.id },
-      createdAt: { gte: sevenDaysAgo },
-    },
-  })
+  const activeThisWeek = uniqueThoughts.filter((thought) => thought.createdAt >= sevenDaysAgo).length
 
-  const latestClientActivity = clients
-    .flatMap((client) => client.threads.flatMap((thread) => thread.thoughts))
+  const latestClientActivity = uniqueThoughts
     .map((thought) => thought.createdAt)
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? null
 
@@ -167,7 +171,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {clients.map((client) => (
-                <ClientCard key={client.id} client={client} />
+                <ClientCard
+                  key={client.id}
+                  client={client}
+                  thoughts={thoughtsByClient.get(client.id) ?? []}
+                />
               ))}
             </div>
           </Card>
@@ -185,8 +193,14 @@ type ClientWithThreads = Awaited<ReturnType<typeof prisma.userProfile.findMany>>
   }>
 }
 
-function ClientCard({ client }: { client: ClientWithThreads }) {
-  const allThoughts = client.threads.flatMap((t) => t.thoughts)
+function ClientCard({
+  client,
+  thoughts,
+}: {
+  client: ClientWithThreads
+  thoughts: Array<{ createdAt: Date; pattern: string | null }>
+}) {
+  const allThoughts = thoughts
 
   const patternCounts = allThoughts.reduce<Record<string, number>>((acc, t) => {
     const p = t.pattern?.trim().toLowerCase()
@@ -200,10 +214,7 @@ function ClientCard({ client }: { client: ClientWithThreads }) {
     .map((t) => t.createdAt)
     .sort((a, b) => b.getTime() - a.getTime())[0]
 
-  const totalReflections = client.threads.reduce(
-    (sum, t) => sum + (t.insight?.thoughtCount ?? t.thoughts.length),
-    0
-  )
+  const totalReflections = allThoughts.length
 
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
@@ -305,4 +316,44 @@ function formatRelative(date: Date): string {
 
 function formatPattern(pattern: string): string {
   return pattern.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+}
+
+function normalizeExactThoughtText(value: string | null | undefined): string {
+  return (value ?? "").trim().replace(/\s+/g, " ")
+}
+
+function dedupeExactThoughts<
+  T extends {
+    thought: string | null
+  }
+>(items: T[]): T[] {
+  const seen = new Set<string>()
+  const unique: T[] = []
+
+  for (const item of items) {
+    const normalized = normalizeExactThoughtText(item.thought)
+    if (!normalized) {
+      unique.push(item)
+      continue
+    }
+    if (seen.has(normalized)) continue
+    seen.add(normalized)
+    unique.push(item)
+  }
+
+  return unique
+}
+
+function groupThoughtsByClient(
+  thoughts: Array<{ userId: string; createdAt: Date; pattern: string | null }>
+) {
+  const grouped = new Map<string, Array<{ createdAt: Date; pattern: string | null }>>()
+
+  for (const thought of thoughts) {
+    const existing = grouped.get(thought.userId) ?? []
+    existing.push({ createdAt: thought.createdAt, pattern: thought.pattern })
+    grouped.set(thought.userId, existing)
+  }
+
+  return grouped
 }

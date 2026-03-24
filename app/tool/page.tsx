@@ -34,6 +34,42 @@ function toEmotionAdjective(emotion: string): string {
   return EMOTION_NOUN_TO_ADJECTIVE[lower] ?? lower
 }
 
+function dedupeEmotionWords(emotions: string[]) {
+  const seen = new Set<string>()
+  return emotions.filter((emotion) => {
+    const normalized = emotion.trim().toLowerCase()
+    if (!normalized || seen.has(normalized)) return false
+    seen.add(normalized)
+    return true
+  })
+}
+
+function formatEmotionList(emotions: string[]) {
+  if (emotions.length === 0) return ""
+  if (emotions.length === 1) return emotions[0]
+  if (emotions.length === 2) return `${emotions[0]} and ${emotions[1]}`
+  return `${emotions.slice(0, -1).join(", ")}, and ${emotions[emotions.length - 1]}`
+}
+
+function buildEmotionReflection(analysis: ThoughtAnalysisResult, userThought: string) {
+  const thoughtLower = userThought.toLowerCase()
+  const candidates = dedupeEmotionWords(
+    [...(analysis.emotions ?? []), analysis.emotion ?? ""]
+      .map((emotion) => toEmotionAdjective(emotion))
+      .filter((emotion) => emotion.trim().length > 0),
+  )
+
+  const exactMatches = candidates.filter((emotion) =>
+    thoughtLower.includes(emotion.toLowerCase()),
+  )
+
+  const selected = (exactMatches.length > 0 ? exactMatches : candidates).slice(0, 2)
+
+  if (!selected.length) return ""
+
+  return `This thought left you feeling ${formatEmotionList(selected)}.`
+}
+
 
 type ThoughtAnalysisResult = {
   situation: string;
@@ -48,6 +84,18 @@ type ThoughtAnalysisResult = {
   trigger: string;
   reflectionQuestion: string;
   balancedThought: string;
+  steadierWay: string;
+  situationalBelief?: string;
+  situationalBeliefConfidence?: string;
+  observedAcrossPatterns?: string;
+  beliefType?: string;
+  whyThisLevel?: string;
+  deeperBelief?: string;
+  deeperBeliefConfidence?: string;
+  deeperBeliefReason?: string;
+  reasoningBridge?: string;
+  alternativePossibility?: string;
+  beliefExample?: string;
   thought?: string | null;
   context?: string[];
 };
@@ -132,6 +180,11 @@ const INSIGHT_CARD_STYLES: Record<
     border: "oklch(0.84 0.07 152 / 0.45)",
     dot: "oklch(0.46 0.12 152)",
   },
+  steadier: {
+    bg: "linear-gradient(150deg, oklch(0.997 0.003 88) 0%, oklch(0.988 0.012 152) 100%)",
+    border: "oklch(0.87 0.04 152 / 0.35)",
+    dot: "oklch(0.40 0.10 152)",
+  },
 };
 
 type AnalysisCard = {
@@ -152,25 +205,40 @@ const selectResponseMode = (
   return "short";
 };
 
-const toNaturalPatternLine = (raw: string): string => {
+const toCollaborativePatternLine = (raw: string): string => {
   const trimmed = raw.trim();
   if (!trimmed) return "";
-  if (/^this looks like/i.test(trimmed)) return trimmed;
-  return `This looks like your mind focusing on what might go wrong while the outcome is still unclear.`;
+  if (/^one way to look at this is:/i.test(trimmed)) return trimmed;
+
+  let body = trimmed
+    .replace(/^this looks like\s*/i, "")
+    .replace(/^it looks like\s*/i, "")
+    .replace(/^it seems like\s*/i, "")
+    .replace(/^your mind is\s+/i, "your mind might be ")
+    .replace(/^your mind has\s+/i, "your mind might be ")
+    .replace(/^your mind keeps\s+/i, "your mind might keep ")
+    .replace(/^you are\s+/i, "you might be ")
+    .replace(/^you're\s+/i, "you might be ")
+    .trim();
+
+  if (!body) return "";
+  if (!/[.!?]$/.test(body)) body = `${body}.`;
+
+  return `One way to look at this is: ${body}`;
 };
 
 const buildAnalysisCards = (
   analysis: ThoughtAnalysisResult,
-  options?: { includeSituation?: boolean; mode?: ResponseMode },
+  options?: { includeSituation?: boolean; mode?: ResponseMode; userThought?: string },
 ): AnalysisCard[] => {
   const includeSituation = options?.includeSituation ?? true;
   const mode = options?.mode ?? "short";
+  const userThought = options?.userThought ?? "";
   // Use contextual AI message (patternExplanation) directly —
   // no fallback to generic patternToInsight string matching
-  const patternValue = toNaturalPatternLine(analysis.patternExplanation ?? "");
-  const emotionValue = analysis.emotion?.trim()
-    ? `It makes sense this could feel ${toEmotionAdjective(analysis.emotion)}.`
-    : "";
+  const patternValue = toCollaborativePatternLine(analysis.patternExplanation ?? "");
+  const emotionValue = buildEmotionReflection(analysis, userThought);
+  const steadierValue = analysis.steadierWay?.trim() ?? "";
 
   const storyAndEmotion =
     mode === "short" && emotionValue
@@ -194,12 +262,14 @@ const buildAnalysisCards = (
     },
     mode === "short"
       ? null
-      : {
+      : emotionValue
+        ? {
           key: "emotion",
           title: "How it feels right now",
-          value: analysis.emotion ?? "",
+          value: emotionValue,
           style: INSIGHT_CARD_STYLES.emotion,
-        },
+        }
+        : null,
     patternValue
       ? {
           key: "pattern",
@@ -211,11 +281,18 @@ const buildAnalysisCards = (
       : null,
     {
       key: "balanced",
-      title: "A steadier way to hold this",
+      title: "A more balanced way to see this",
       value: analysis.balancedThought ?? "",
       style: INSIGHT_CARD_STYLES.balanced,
-      question: analysis.reflectionQuestion?.trim() || undefined,
     },
+    steadierValue
+      ? {
+          key: "steadier",
+          title: "A steadier way to hold this",
+          value: steadierValue,
+          style: INSIGHT_CARD_STYLES.steadier,
+        }
+      : null,
   ];
   return cards.filter((card): card is AnalysisCard => card !== null);
 };
@@ -252,10 +329,10 @@ function InsightCard({ title, value, style, patternKey, question }: InsightCardP
             A clearer view
           </p>
           <p
-            className="text-base font-semibold mb-3 leading-snug"
-            style={{ color: style.dot }}
+            className="text-xs font-medium mb-3 leading-snug"
+            style={{ color: "oklch(0.42 0.025 248)" }}
           >
-            {display.label}
+            Pattern observed: {display.label}
           </p>
           {/* Contextual AI message */}
           <p className="text-base leading-relaxed text-foreground mb-4">
@@ -271,11 +348,7 @@ function InsightCard({ title, value, style, patternKey, question }: InsightCardP
           >
             {title}
           </p>
-          <p className="text-base leading-relaxed text-foreground">
-            {title === "How it feels right now"
-              ? `This thought left you feeling ${toEmotionAdjective(value)}.`
-              : value}
-          </p>
+          <p className="text-base leading-relaxed text-foreground">{value}</p>
           {question && (
             <>
               <div
@@ -560,13 +633,21 @@ function UserMenu({ email, role }: { email: string; role: string | null }) {
             <div className="px-4 py-2.5 border-b border-border">
               <p className="text-xs text-muted-foreground truncate">{email}</p>
             </div>
-            {role === "PRACTITIONER" && (
+            {role === "PRACTITIONER" ? (
               <a
                 href="/dashboard"
                 className="flex items-center px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
                 onClick={() => setOpen(false)}
               >
                 Dashboard
+              </a>
+            ) : (
+              <a
+                href="/history"
+                className="flex items-center px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                My reflections
               </a>
             )}
             <button
@@ -646,6 +727,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         ? buildAnalysisCards(analysis, {
             includeSituation: thoughtHistory.length <= 1,
             mode: responseMode,
+            userThought: analysis.thought ?? "",
           })
         : [],
     [analysis, thoughtHistory.length, responseMode],
@@ -665,6 +747,8 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     visitorIdRef.current = storedVisitor;
     sessionIdRef.current = sessionIdRef.current || createUUID();
     threadIdRef.current = threadIdRef.current || createUUID();
+    // Stamp visitorId into a cookie so the server can claim it on login
+    document.cookie = `tl_claim_visitor=${storedVisitor}; path=/; max-age=2592000; SameSite=Lax`;
     return true;
   };
 
@@ -914,6 +998,18 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         trigger: asString(payload.trigger),
         reflectionQuestion: asString(payload.reflectionQuestion),
         balancedThought: asString(payload.balancedThought),
+        steadierWay: asString(payload.steadierWay),
+        situationalBelief: asString(payload.situationalBelief),
+        situationalBeliefConfidence: asString(payload.situationalBeliefConfidence),
+        observedAcrossPatterns: asString(payload.observedAcrossPatterns),
+        beliefType: asString(payload.beliefType),
+        whyThisLevel: asString(payload.whyThisLevel),
+        deeperBelief: asString(payload.deeperBelief),
+        deeperBeliefConfidence: asString(payload.deeperBeliefConfidence),
+        deeperBeliefReason: asString(payload.deeperBeliefReason),
+        reasoningBridge: asString(payload.reasoningBridge),
+        alternativePossibility: asString(payload.alternativePossibility),
+        beliefExample: asString(payload.beliefExample),
         context: Array.isArray(payload.context)
           ? payload.context.map((item: unknown) => String(item))
           : [],
@@ -950,6 +1046,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     const cards = buildAnalysisCards(entry.analysis, {
       includeSituation: thoughtHistory.length <= 1,
       mode: entry.mode,
+      userThought: entry.thought,
     });
     const visibleCards = cards.filter((card) => card.value.trim());
 
@@ -957,20 +1054,21 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     // Group 1: fact only
     // Group 2: story + emotion
     // Group 3: pattern
-    // Group 4: balanced (already user-gated separately)
+    // Group 4: balanced + steadier way (already user-gated separately)
     const GROUP_MAP: Record<string, number> = {
       fact: 1,
       story: 2,
       emotion: 2,
       pattern: 3,
       balanced: 4,
+      steadier: 4,
     }
 
     // Continue button labels per group
     const CONTINUE_LABELS: Record<number, string> = {
       1: "I see — what did my mind make of this?",
-      2: "Why does my mind do this?",
-      3: "Show me a clearer way to see this",
+      2: "Show me one way to understand this",
+      3: "Show me a more balanced way to see this",
     }
 
     // Which groups are present in this entry
@@ -1237,11 +1335,24 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
           <span className="font-display text-xl font-semibold text-foreground tracking-tight">
             Thoughtlensai
           </span>
-          <div className="w-20 flex justify-end">
+          <div className="flex items-center gap-3 justify-end">
+            {userEmail && userRole === "PRACTITIONER" && (
+              <a
+                href="/dashboard"
+                className="text-sm font-medium px-4 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity"
+              >
+                Dashboard
+              </a>
+            )}
             {userEmail ? (
               <UserMenu email={userEmail} role={userRole} />
             ) : (
-              <div />
+              <a
+                href="/auth/login"
+                className="text-sm font-medium px-4 py-1.5 rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
+              >
+                Sign in
+              </a>
             )}
           </div>
         </nav>
@@ -1251,10 +1362,10 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         <FadeUp>
           <header className="text-center space-y-2 md:space-y-3">
             <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-semibold text-foreground text-balance leading-tight">
-              What&apos;s been on your mind?
+              What happened since your last session?
             </h1>
             <p className="text-sm sm:text-base md:text-lg" style={{ color: "oklch(0.48 0.020 248)" }}>
-              The fear, the spiral, the worry that keeps coming back.
+              Capture a moment your mind got stuck.
             </p>
           </header>
         </FadeUp>
@@ -1533,7 +1644,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                           className="text-base font-semibold leading-snug"
                           style={{ color: "oklch(0.22 0.018 248)" }}
                         >
-                          Does this feel clearer than when you started?
+                          What feels true for you right now?
                         </p>
                         <div className="flex flex-col gap-2">
                           <button
@@ -1546,7 +1657,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                               color: "oklch(0.32 0.09 152)",
                             }}
                           >
-                            Yes, I have more clarity →
+                            This helped me see things differently
                           </button>
                           <button
                             type="button"
@@ -1558,7 +1669,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                               color: "oklch(0.39 0.09 310)",
                             }}
                           >
-                            Not yet — there&apos;s still something here →
+                            There&apos;s more here to explore
                           </button>
                         </div>
                       </div>
@@ -1592,13 +1703,13 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                           className="text-base font-semibold leading-relaxed"
                           style={{ color: "oklch(0.22 0.018 248)" }}
                         >
-                          You&apos;ve worked through this situation and found a clearer way to see it.
+                          You&apos;ve found one way to hold this with a little more steadiness.
                         </p>
                         <p
                           className="text-sm leading-relaxed"
                           style={{ color: "oklch(0.40 0.025 248)" }}
                         >
-                          That&apos;s the work.
+                          You can pause here, or keep going if something still feels unfinished.
                         </p>
                         <div className="flex flex-col gap-2 pt-1">
                           <button
@@ -1861,6 +1972,28 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
               )}
             </div>
           </section>
+        )}
+
+        {/* Sign-in nudge — shown after first reflection, only for anonymous users */}
+        {thoughtHistory.length >= 1 && !userEmail && !loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.6 }}
+            className="mx-auto w-full max-w-md"
+          >
+            <div className="rounded-2xl border border-dashed border-foreground/15 px-5 py-4 text-center">
+              <p className="text-sm text-muted-foreground mb-3">
+                Save your reflections so you can look back on them
+              </p>
+              <a
+                href="/auth/login"
+                className="inline-block bg-foreground text-background text-sm font-medium px-5 py-2 rounded-xl hover:opacity-90 transition-opacity"
+              >
+                Sign in to save history
+              </a>
+            </div>
+          </motion.div>
         )}
       </main>
 

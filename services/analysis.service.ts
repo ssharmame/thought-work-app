@@ -15,6 +15,18 @@ export type MergedAnalysis = {
   pattern: string | null
   patternExplanation: string | null
   balancedThought: string | null
+  steadierWay: string | null
+  situationalBelief: string | null
+  situationalBeliefConfidence: string | null
+  observedAcrossPatterns: string | null
+  beliefType: string | null
+  whyThisLevel: string | null
+  deeperBelief: string | null
+  deeperBeliefConfidence: string | null
+  deeperBeliefReason: string | null
+  reasoningBridge: string | null
+  alternativePossibility: string | null
+  beliefExample: string | null
   reflectionQuestion: string | null
   normalization: string | null
   coreBelief: string | null
@@ -58,9 +70,21 @@ export function mergeAnalysisStages(
     // Falls back to explanation for backwards compatibility.
     patternExplanation: pattern.patternMessage?.trim() || pattern.explanation?.trim() || null,
     balancedThought: balanced.balancedThought ?? null,
+    steadierWay: balanced.steadierWay ?? null,
+    situationalBelief: balanced.situationalBelief?.trim() || null,
+    situationalBeliefConfidence: balanced.situationalBeliefConfidence ?? null,
+    observedAcrossPatterns: balanced.observedAcrossPatterns?.trim() || null,
+    beliefType: balanced.beliefType ?? null,
+    whyThisLevel: balanced.whyThisLevel?.trim() || null,
+    deeperBelief: balanced.deeperBelief?.trim() || null,
+    deeperBeliefConfidence: balanced.deeperBeliefConfidence ?? null,
+    deeperBeliefReason: balanced.deeperBeliefReason?.trim() || null,
+    reasoningBridge: balanced.reasoningBridge?.trim() || null,
+    alternativePossibility: balanced.alternativePossibility?.trim() || null,
+    beliefExample: balanced.beliefExample?.trim() || null,
     reflectionQuestion: recognition.reflection ?? recognition.prompt ?? null,
     normalization: null,
-    coreBelief: null,
+    coreBelief: balanced.deeperBelief?.trim() || null,
     trigger: null,
     context,
   }

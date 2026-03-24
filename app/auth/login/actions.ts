@@ -3,6 +3,27 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
+export async function signInWithGoogle() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
+    },
+  })
+
+  if (error || !data.url) {
+    redirect("/auth/login?error=oauth_failed")
+  }
+
+  redirect(data.url)
+}
+
 export async function sendMagicLink(formData: FormData) {
   const email = formData.get("email") as string
 
@@ -15,7 +36,6 @@ export async function sendMagicLink(formData: FormData) {
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      // After clicking the magic link, user lands here
       emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
     },
   })

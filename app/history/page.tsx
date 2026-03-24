@@ -19,11 +19,6 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
 
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1)
   const pageSize = 7
-  const skip = (page - 1) * pageSize
-
-  const totalThreads = await prisma.thread.count({
-    where: { userId: user.id },
-  })
 
   const threads = await prisma.thread.findMany({
     where: { userId: user.id },
@@ -46,17 +41,29 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       },
     },
     orderBy: { createdAt: "desc" },
-    skip,
-    take: pageSize,
   })
+  const groupedThreads = groupThreadsByDisplayLabel(threads)
+  const totalThreads = groupedThreads.length
+  const skip = (page - 1) * pageSize
+  const visibleThreads = groupedThreads.slice(skip, skip + pageSize)
+  const uniqueThoughtEntries = dedupeExactThoughts(
+    await prisma.thoughtEntry.findMany({
+      where: { userId: user.id },
+      select: {
+        thought: true,
+        pattern: true,
+        emotion: true,
+        situation: true,
+        createdAt: true,
+      },
+    })
+  )
 
-  const totalReflections = await prisma.thoughtEntry.count({
-    where: { userId: user.id },
-  })
+  const totalReflections = uniqueThoughtEntries.length
 
   // Normalize and count patterns
-  const allPatterns = threads
-    .flatMap((t) => t.thoughts.map((th) => th.pattern))
+  const allPatterns = uniqueThoughtEntries
+    .map((th) => th.pattern)
     .filter((p): p is string => !!p)
     .map(normalizeKey)
 
@@ -65,10 +72,47 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     {}
   )
   const topPattern = Object.entries(patternCounts).sort(([, a], [, b]) => b - a)[0]
-  const latestReflection = threads
-    .flatMap((thread) => thread.thoughts)
+  const topPatternTrend = topPattern
+    ? computeWindowTrend(
+        uniqueThoughtEntries.filter((entry) => normalizeKey(entry.pattern) === topPattern[0]),
+        7
+      )
+    : "stable"
+  const topPatternEmotion = topPattern
+    ? Object.entries(
+        countBy(uniqueThoughtEntries, (entry) =>
+          normalizeKey(entry.pattern) === topPattern[0] ? normalizeEmotionCategory(entry.emotion) : ""
+        )
+      ).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null
+    : null
+  const topPatternExample = topPattern
+    ? uniqueThoughtEntries.find((entry) => normalizeKey(entry.pattern) === topPattern[0])?.thought ?? null
+    : null
+  const latestReflection = uniqueThoughtEntries
     .map((thought) => thought.createdAt)
     .sort((a, b) => b.getTime() - a.getTime())[0] ?? null
+  const last7Days = uniqueThoughtEntries.filter((entry) => isWithinDays(entry.createdAt, 7))
+  const mostFrequentPattern7d = Object.entries(countBy(last7Days, (entry) => normalizeKey(entry.pattern)))
+    .sort(([, a], [, b]) => b - a)[0]?.[0] ?? null
+  const topEmotionCategory7d = Object.entries(
+    countBy(last7Days, (entry) => normalizeEmotionCategory(entry.emotion))
+  )
+    .sort(([, a], [, b]) => b - a)[0]?.[0] ?? null
+  const emotionTrend = topEmotionCategory7d
+    ? computeWindowTrend(
+        uniqueThoughtEntries.filter(
+          (entry) => normalizeEmotionCategory(entry.emotion) === topEmotionCategory7d
+        ),
+        7
+      )
+    : "stable"
+  const mostRepeatedSituation7d = Object.entries(
+    countBy(last7Days, (entry) => normalizeThemeKey(entry.situation ?? entry.thought))
+  ).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null
+  const topRelevantKey =
+    groupedThreads
+      .slice()
+      .sort((a, b) => computeThreadRelevanceScore(b) - computeThreadRelevanceScore(a))[0]?.key ?? null
 
   return (
     <div
@@ -151,7 +195,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
         </Card>
 
         {/* Thread list */}
-        {threads.length === 0 ? (
+        {visibleThreads.length === 0 ? (
           <Card className="rounded-[24px] px-6 py-16 text-center">
             <p className="text-muted-foreground text-sm mb-2">No reflections yet</p>
             <p className="text-muted-foreground/60 text-xs mb-6 max-w-xs mx-auto">
@@ -173,9 +217,34 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                   Reflection threads
                 </h2>
               </div>
+              <div className="mb-5 rounded-2xl border border-border bg-background/80 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Last 7 days</p>
+                <div className="mt-3 space-y-2 text-sm leading-6 text-foreground">
+                  <p>
+                    <span className="text-muted-foreground">Repeated pattern:</span>{" "}
+                    {mostFrequentPattern7d ? formatPattern(mostFrequentPattern7d) : "No clear pattern yet"}
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Emotion:</span>{" "}
+                    {topEmotionCategory7d
+                      ? formatEmotionTrend(topEmotionCategory7d, emotionTrend)
+                      : "No clear emotion trend yet"}
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Main theme:</span>{" "}
+                    {mostRepeatedSituation7d
+                      ? restoreDisplayLabel(mostRepeatedSituation7d)
+                      : "No repeated situation yet"}
+                  </p>
+                </div>
+              </div>
               <div className="space-y-3">
-                {threads.map((thread) => (
-                  <ThreadCard key={thread.id} thread={thread} />
+                {visibleThreads.map((thread) => (
+                  <ThreadCard
+                    key={thread.key}
+                    thread={thread}
+                    highlighted={topRelevantKey === thread.key}
+                  />
                 ))}
               </div>
               {totalThreads > pageSize && (
@@ -221,19 +290,16 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                     {formatPattern(topPattern[0])}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Showed up in {topPattern[1]} of your reflections.
+                    Appeared in {topPattern[1]} reflections and most often showed up with{" "}
+                    {topPatternEmotion ? formatDominantEmotion(topPatternEmotion).toLowerCase() : "an unclear emotional signal"}.
                   </p>
+                  <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                    <p>Trend: {formatTrendSentence(topPatternTrend)}</p>
+                    <p>Linked emotion: {topPatternEmotion ? formatDominantEmotion(topPatternEmotion) : "Not clear yet"}</p>
+                    <p>Example thought: {topPatternExample ? `“${shortenThoughtSnippet(topPatternExample)}”` : "Not clear yet"}</p>
+                  </div>
                 </Card>
               )}
-
-              <Card className="rounded-[24px] border border-border/80 px-5 py-5 md:px-6 md:py-6">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">How to use this page</p>
-                <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
-                  <li>Open a thread to see the sequence of patterns, feelings, and reframes.</li>
-                  <li>Use this archive to notice what themes return across different situations.</li>
-                  <li>The most recent threads appear first so you can revisit them quickly.</li>
-                </ul>
-              </Card>
             </div>
           </div>
         )}
@@ -258,25 +324,60 @@ type ThreadWithThoughts = Awaited<ReturnType<typeof prisma.thread.findMany>>[num
   insight: { dominantPattern: string | null; dominantEmotion: string | null } | null
 }
 
-function ThreadCard({ thread }: { thread: ThreadWithThoughts }) {
-  const patterns = [
-    ...new Set(
-      thread.thoughts
-        .map((t) => t.pattern)
-        .filter(Boolean)
-        .map((p) => normalizeKey(p!))
-    ),
-  ]
+type GroupedHistoryThread = {
+  key: string
+  label: string
+  createdAt: Date
+  thoughts: ThreadWithThoughts["thoughts"]
+  sourceCount: number
+  dominantPattern: string | null
+  dominantEmotion: string | null
+  selfPerception: string | null
+  trend: "increasing" | "decreasing" | "stable"
+  intensityLabel: string | null
+  contextSnippet: string | null
+}
+
+function ThreadCard({
+  thread,
+  highlighted,
+}: {
+  thread: GroupedHistoryThread
+  highlighted: boolean
+}) {
+  const uniqueThoughts = dedupeExactThoughts(thread.thoughts)
 
   return (
     <details className="group overflow-hidden rounded-[22px] border border-border bg-card/90">
       <summary className="flex items-start justify-between px-5 py-4 cursor-pointer list-none hover:bg-secondary/20 transition-colors">
         <div className="flex-1 min-w-0 pr-4">
+          {highlighted && (
+            <span className="mb-2 inline-flex rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[11px] font-medium text-secondary-foreground">
+              Most relevant for next session
+            </span>
+          )}
           <p className="text-foreground text-sm font-medium leading-snug">
-            {thread.situation ?? thread.title ?? thread.thoughts[0]?.thought?.slice(0, 80) ?? "Untitled"}
+            {formatThreadTitle(thread.label, thread.dominantPattern)}
           </p>
+          {thread.contextSnippet && thread.contextSnippet !== thread.label && (
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Example: &ldquo;{shortenThoughtSnippet(thread.contextSnippet)}&rdquo;
+            </p>
+          )}
 
           <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <span className="text-muted-foreground text-xs">
+              {uniqueThoughts.length} reflection{uniqueThoughts.length !== 1 ? "s" : ""} • {thread.dominantPattern ? `${formatPattern(thread.dominantPattern)} recurring` : "No pattern yet"} • {thread.dominantEmotion ? `Dominant emotion: ${formatDominantEmotion(thread.dominantEmotion)}` : "Emotion still forming"}
+            </span>
+          </div>
+          {thread.selfPerception && (
+            <div className="mt-2 flex items-center gap-3 flex-wrap">
+              <span className="text-muted-foreground text-xs">
+                Self-perception: {thread.selfPerception}
+              </span>
+            </div>
+          )}
+          <div className="mt-2 flex items-center gap-3 flex-wrap">
             <span className="text-muted-foreground text-xs">
               {thread.createdAt.toLocaleDateString("en-US", {
                 month: "short",
@@ -288,11 +389,16 @@ function ThreadCard({ thread }: { thread: ThreadWithThoughts }) {
               })}
             </span>
             <span className="text-muted-foreground text-xs">
-              {thread.thoughts.length} reflection{thread.thoughts.length !== 1 ? "s" : ""}
+              {formatThreadTrend(thread.trend)}
             </span>
-            {patterns[0] && (
-              <span className="bg-secondary text-secondary-foreground text-xs px-2.5 py-0.5 rounded-full">
-                {formatPattern(patterns[0])}
+            {thread.sourceCount > 1 && (
+              <span className="text-muted-foreground text-xs">
+                This theme has come up {thread.sourceCount} times
+              </span>
+            )}
+            {thread.intensityLabel && (
+              <span className="text-muted-foreground text-xs">
+                {thread.intensityLabel}
               </span>
             )}
           </div>
@@ -312,7 +418,7 @@ function ThreadCard({ thread }: { thread: ThreadWithThoughts }) {
 
       {/* Expanded: reflections */}
       <div className="border-t border-border divide-y divide-border">
-        {thread.thoughts.map((thought, i) => (
+        {uniqueThoughts.map((thought, i) => (
           <ReflectionRow key={thought.id} thought={thought} index={i} />
         ))}
       </div>
@@ -414,12 +520,283 @@ function normalizeKey(s: string): string {
   return s.trim().toLowerCase().replace(/[\s-]+/g, "_")
 }
 
+function normalizeExactThoughtText(value: string | null | undefined): string {
+  return (value ?? "").trim().replace(/\s+/g, " ")
+}
+
+function dedupeExactThoughts<
+  T extends {
+    thought: string | null
+  }
+>(items: T[]): T[] {
+  const seen = new Set<string>()
+  const unique: T[] = []
+
+  for (const item of items) {
+    const normalized = normalizeExactThoughtText(item.thought)
+    if (!normalized) {
+      unique.push(item)
+      continue
+    }
+    if (seen.has(normalized)) continue
+    seen.add(normalized)
+    unique.push(item)
+  }
+
+  return unique
+}
+
+function normalizeDisplayLabel(value: string | null | undefined): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[“”"'.!?]+/g, "")
+    .replace(/\s+/g, " ")
+}
+
+function normalizeThemeKey(value: string | null | undefined): string {
+  return normalizeDisplayLabel(abstractSituationTheme(value ?? ""))
+}
+
+function groupThreadsByDisplayLabel(threads: ThreadWithThoughts[]): GroupedHistoryThread[] {
+  const grouped = new Map<string, GroupedHistoryThread>()
+
+  for (const thread of threads) {
+    const label = (
+      thread.situation ??
+      thread.title ??
+      thread.thoughts[0]?.thought ??
+      "Untitled"
+    ).trim()
+    const themeLabel = abstractSituationTheme(label)
+    const key = normalizeThemeKey(label)
+
+    if (!key) continue
+
+    const existing = grouped.get(key)
+    if (!existing) {
+      grouped.set(key, {
+        key,
+        label: themeLabel,
+        createdAt: thread.createdAt,
+        thoughts: [...thread.thoughts],
+        sourceCount: 1,
+        dominantPattern: null,
+        dominantEmotion: null,
+        selfPerception: null,
+        trend: "stable",
+        intensityLabel: null,
+        contextSnippet: thread.thoughts[0]?.thought ?? thread.title ?? null,
+      })
+      continue
+    }
+
+    if (thread.createdAt > existing.createdAt) {
+      existing.createdAt = thread.createdAt
+      existing.label = themeLabel
+      existing.contextSnippet = thread.thoughts[0]?.thought ?? thread.title ?? existing.contextSnippet
+    }
+
+    existing.sourceCount += 1
+    existing.thoughts.push(...thread.thoughts)
+  }
+
+  return Array.from(grouped.values())
+    .map((group) => {
+      const uniqueThoughts = dedupeExactThoughts(group.thoughts)
+      const dominantPattern = Object.entries(
+        countBy(uniqueThoughts, (thought) => normalizeKey(thought.pattern))
+      ).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null
+      const dominantEmotion = Object.entries(
+        countBy(uniqueThoughts, (thought) => normalizeEmotionCategory(thought.emotion))
+      ).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null
+      const selfPerception = Object.entries(
+        countBy(uniqueThoughts, (thought) => normalizeSelfPerception(thought.emotion))
+      ).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null
+
+      return {
+        ...group,
+        dominantPattern,
+        dominantEmotion,
+        selfPerception,
+        trend: computeWindowTrend(uniqueThoughts, 7),
+        intensityLabel: inferIntensityLabel(uniqueThoughts, dominantEmotion),
+        contextSnippet:
+          uniqueThoughts.find(
+            (thought) =>
+              normalizeThemeKey(thought.situation ?? thought.thought) === normalizeThemeKey(group.label)
+          )?.thought ??
+          uniqueThoughts[0]?.thought ??
+          group.contextSnippet,
+      }
+    })
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+}
+
+function countBy<T>(items: T[], key: (item: T) => string | null | undefined): Record<string, number> {
+  return items.reduce<Record<string, number>>((acc, item) => {
+    const value = key(item)
+    if (!value) return acc
+    acc[value] = (acc[value] ?? 0) + 1
+    return acc
+  }, {})
+}
+
+function isWithinDays(date: Date, days: number) {
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - days)
+  return date >= cutoff
+}
+
+function computeWindowTrend(
+  items: Array<{ createdAt: Date }>,
+  windowDays: number
+): "increasing" | "decreasing" | "stable" {
+  const now = new Date()
+  const currentStart = new Date(now)
+  currentStart.setDate(currentStart.getDate() - windowDays)
+  const previousStart = new Date(currentStart)
+  previousStart.setDate(previousStart.getDate() - windowDays)
+
+  const currentCount = items.filter((item) => item.createdAt >= currentStart).length
+  const previousCount = items.filter(
+    (item) => item.createdAt >= previousStart && item.createdAt < currentStart
+  ).length
+
+  if (currentCount > previousCount) return "increasing"
+  if (currentCount < previousCount) return "decreasing"
+  return "stable"
+}
+
+function computeThreadRelevanceScore(thread: GroupedHistoryThread) {
+  const recentBonus = isWithinDays(thread.createdAt, 7) ? 3 : 0
+  const intensityBonus = thread.intensityLabel === "Strong emotional impact" ? 6 : 0
+  return thread.sourceCount * 3 + dedupeExactThoughts(thread.thoughts).length + recentBonus + intensityBonus
+}
+
+function restoreDisplayLabel(label: string) {
+  return label.replace(/^\w/, (char) => char.toUpperCase())
+}
+
 function formatPattern(pattern: string): string {
   return normalizeKey(pattern)
+    .replace(/self_criticism/g, "self-criticism")
     .replace(/_/g, " ")
     .replace(/^\w/, (c) => c.toUpperCase())
 }
 
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+}
+
+function formatDominantEmotion(emotion: string) {
+  const normalized = normalizeKey(emotion)
+
+  if (normalized.includes("anx")) return "Anxiety"
+  if (normalized.includes("disappoint")) return "Disappointment"
+  if (normalized.includes("sad") || normalized.includes("empty") || normalized.includes("hopeless")) {
+    return "Sadness"
+  }
+  return "Sadness"
+}
+
+function normalizeEmotionCategory(emotion: string | null | undefined) {
+  const normalized = normalizeKey(emotion ?? "")
+  if (!normalized) return ""
+  if (normalized.includes("anx")) return "anxiety"
+  if (normalized.includes("disappoint")) return "disappointment"
+  if (normalized.includes("sad") || normalized.includes("empty") || normalized.includes("hopeless")) {
+    return "sadness"
+  }
+  return ""
+}
+
+function normalizeSelfPerception(emotion: string | null | undefined) {
+  const normalized = normalizeKey(emotion ?? "")
+  if (!normalized) return ""
+  if (normalized.includes("not_good_enough")) return "feels not good enough"
+  if (normalized.includes("not_capable") || normalized.includes("failure") || normalized.includes("i_will_fail")) {
+    return "feels like failure"
+  }
+  return ""
+}
+
+function formatEmotionTrend(emotion: string, trend: "increasing" | "decreasing" | "stable") {
+  const base = formatDominantEmotion(emotion)
+  if (trend === "increasing") return `${base} increasing recently`
+  if (trend === "decreasing") return `${base} still recurring but slightly reducing`
+  return `${base} stable`
+}
+
+function inferIntensityLabel(
+  thoughts: Array<{ emotion?: string | null; createdAt: Date }>,
+  dominantEmotion: string | null
+) {
+  const intenseEmotion = dominantEmotion
+    ? ["devastated", "empty", "hopeless", "panicked", "overwhelmed", "anxious", "anxiety"].includes(normalizeKey(dominantEmotion))
+    : false
+  const recentCount = thoughts.filter((thought) => isWithinDays(thought.createdAt, 7)).length
+  const clusteredRecently = recentCount >= 4
+  const totalCount = thoughts.length
+  if (intenseEmotion || clusteredRecently || totalCount >= 8) return "Strong emotional impact"
+  if (totalCount >= 4) return "Moderate emotional impact"
+  return null
+}
+
+function abstractSituationTheme(label: string) {
+  const normalized = normalizeDisplayLabel(label)
+  if (normalized.includes("unemployed") || normalized.includes("find a job") || normalized.includes("job search") || normalized.includes("job")) {
+    return "Ongoing uncertainty about job search progress"
+  }
+  if (normalized.includes("startup") || normalized.includes("funding") || normalized.includes("investor")) {
+    return "Ongoing uncertainty about startup progress"
+  }
+  if (normalized.includes("reply") || normalized.includes("response") || normalized.includes("heard back")) {
+    return "Waiting for a response and filling in the gap"
+  }
+  if (normalized.includes("interview")) {
+    return "Uncertainty about interview outcome"
+  }
+  if (normalized.includes("highway") || normalized.includes("speed") || normalized.includes("ticket")) {
+    return "Lingering worry after driving fast on the highway"
+  }
+  return label
+}
+
+function shortenThoughtSnippet(thought: string | null | undefined) {
+  const normalized = (thought ?? "").trim().replace(/\s+/g, " ")
+  if (!normalized) return ""
+
+  const sentence = normalized.split(/[.?!]/)[0]?.trim() ?? normalized
+  if (sentence.length <= 90) return sentence
+  return `${sentence.slice(0, 87).trimEnd()}...`
+}
+
+function formatTrendSentence(trend: "increasing" | "decreasing" | "stable") {
+  if (trend === "increasing") return "Increasing recently"
+  if (trend === "decreasing") return "Still recurring but slightly reducing"
+  return "Stable pattern"
+}
+
+function formatThreadTrend(trend: "increasing" | "decreasing" | "stable") {
+  return formatTrendSentence(trend)
+}
+
+function formatThreadTitle(label: string, pattern: string | null) {
+  const situation = abstractSituationTheme(label)
+  if (!pattern) return situation
+  return `${situation} → ${formatPatternAsMentalPattern(pattern)}`
+}
+
+function formatPatternAsMentalPattern(pattern: string) {
+  const normalized = normalizeKey(pattern)
+
+  if (normalized.includes("fortune_telling")) return "predicting negative outcome"
+  if (normalized.includes("catastroph")) return "expecting worst-case"
+  if (normalized.includes("mind_reading")) return "jumping to conclusions"
+  if (normalized.includes("self_criticism")) return "judging yourself harshly"
+  if (normalized.includes("overgeneral")) return "imagining failure"
+  if (normalized.includes("uncertainty")) return "expecting worst-case"
+
+  return formatPattern(pattern).toLowerCase()
 }

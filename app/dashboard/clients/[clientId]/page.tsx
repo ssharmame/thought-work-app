@@ -68,6 +68,8 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
     },
   })
 
+  const uniqueThoughts = dedupeExactThoughts(thoughts)
+
   const threads = await prisma.thread.findMany({
     where: { userId: clientId },
     orderBy: { createdAt: "desc" },
@@ -81,23 +83,23 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
     },
   })
 
-  const totalReflections = thoughts.length
+  const totalReflections = uniqueThoughts.length
   const totalThreads = await prisma.thread.count({ where: { userId: clientId } })
 
   // ─── Patterns (deduplicated) ─────────────────────────────────────────────
-  const patternCounts = countBy(thoughts, (t) => normalizeKey(t.pattern))
+  const patternCounts = countBy(uniqueThoughts, (t) => normalizeKey(t.pattern))
   const sortedPatterns = Object.entries(patternCounts)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 8)
 
   // ─── Emotions ────────────────────────────────────────────────────────────
-  const emotionCounts = countBy(thoughts, (t) => normalizeKey(t.emotion))
+  const emotionCounts = countBy(uniqueThoughts, (t) => normalizeKey(t.emotion))
   const sortedEmotions = Object.entries(emotionCounts)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 6)
   const topPatternOverall = sortedPatterns[0]
   const topEmotionOverall = sortedEmotions[0]
-  const latestReflectionAt = thoughts[0]?.createdAt ?? null
+  const latestReflectionAt = uniqueThoughts[0]?.createdAt ?? null
   const emotionDonutData = sortedEmotions.slice(0, 4).map(([emotion, count], index) => ({
     label: cap(emotion),
     value: count,
@@ -106,22 +108,26 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
 
   // ─── Core beliefs ────────────────────────────────────────────────────────
   const beliefCounts = countBy(
-    thoughts.filter((t) => !!t.coreBelief?.trim()),
+    uniqueThoughts.filter((t) => !!t.coreBelief?.trim()),
     (t) => normalizeKey(t.coreBelief)
   )
   const sortedBeliefs = Object.entries(beliefCounts)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
   const coreWound = sortedBeliefs[0]?.[0] ?? null
+  const coreWoundCount = coreWound ? beliefCounts[coreWound] ?? 0 : 0
+  const coreBeliefConfidence = getBeliefConfidence(coreWoundCount)
+  const shouldShowDeeperBelief = coreWoundCount >= 3
   const coreWoundExample = coreWound
-    ? (thoughts.find(
-        (t) => normalizeKey(t.coreBelief) === coreWound && t.automaticThought
-      )?.automaticThought ?? null)
+    ? selectRepresentativeThought(
+        uniqueThoughts,
+        (t) => normalizeKey(t.coreBelief) === coreWound
+      )
     : null
 
   // ─── Pattern → emotion pairings ──────────────────────────────────────────
   const patternEmotionMap: Record<string, Record<string, number>> = {}
-  for (const t of thoughts) {
+  for (const t of uniqueThoughts) {
     if (!t.pattern || !t.emotion) continue
     const p = normalizeKey(t.pattern)
     const e = normalizeKey(t.emotion)
@@ -149,7 +155,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
     start.setDate(start.getDate() - 7)
     return { start, end, count: 0, label: end.toLocaleDateString("en-US", { month: "short", day: "numeric" }) }
   })
-  for (const t of thoughts) {
+  for (const t of uniqueThoughts) {
     const d = new Date(t.createdAt)
     const week = weeks.find((w) => d >= w.start && d < w.end)
     if (week) week.count++
@@ -160,7 +166,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
   const selectedRange = RANGE_OPTIONS.find((option) => option.key === query.range) ?? RANGE_OPTIONS[0]
   const rangeStart = new Date()
   rangeStart.setDate(rangeStart.getDate() - selectedRange.days)
-  const recentThoughts = thoughts.filter((t) => new Date(t.createdAt) >= rangeStart)
+  const recentThoughts = uniqueThoughts.filter((t) => new Date(t.createdAt) >= rangeStart)
   const recentDayCount = new Set(
     recentThoughts.map((t) => new Date(t.createdAt).toISOString().slice(0, 10))
   ).size
@@ -168,28 +174,33 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
   const recentTopPattern = Object.entries(recentPatternCounts).sort(([, a], [, b]) => b - a)[0]
   const recentEmotionCounts = countBy(recentThoughts, (t) => normalizeKey(t.emotion))
   const recentTopEmotion = Object.entries(recentEmotionCounts).sort(([, a], [, b]) => b - a)[0]
-  const recentBeliefCounts = countBy(
-    recentThoughts.filter((t) => !!t.coreBelief?.trim()),
-    (t) => normalizeKey(t.coreBelief)
-  )
-  const recentTopBelief = Object.entries(recentBeliefCounts).sort(([, a], [, b]) => b - a)[0]
-  const recentSample = recentThoughts[0]?.automaticThought ?? recentThoughts[0]?.thought ?? null
+  const recentSample = selectRepresentativeThought(
+    recentThoughts,
+    (t) => normalizeKey(t.pattern) === (recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? "")
+  ) ?? recentThoughts[0]?.automaticThought ?? recentThoughts[0]?.thought ?? null
   const visiblePatterns = sortedPatterns.slice(0, 3)
   const hiddenPatternCount = Math.max(sortedPatterns.length - visiblePatterns.length, 0)
   const topPatternEvidence = topPatternOverall
-    ? collectEvidence(thoughts, (t) => normalizeKey(t.pattern) === topPatternOverall[0])
+    ? collectEvidence(uniqueThoughts, (t) => normalizeKey(t.pattern) === topPatternOverall[0])
     : []
   const topEmotionEvidence = topEmotionOverall
-    ? collectEvidence(thoughts, (t) => normalizeKey(t.emotion) === topEmotionOverall[0])
+    ? collectEvidence(uniqueThoughts, (t) => normalizeKey(t.emotion) === topEmotionOverall[0])
     : []
   const topBeliefEvidence = coreWound
-    ? collectEvidence(thoughts, (t) => normalizeKey(t.coreBelief) === coreWound)
+    ? collectEvidence(uniqueThoughts, (t) => normalizeKey(t.coreBelief) === coreWound)
     : []
+  const emotionSummary = summarizeEmotions(uniqueThoughts)
+  const situationalBelief = deriveSituationalBelief(recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null)
   const sessionFocus = buildSessionFocus({
     pattern: recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null,
     emotion: recentTopEmotion?.[0] ?? topEmotionOverall?.[0] ?? null,
-    belief: recentTopBelief?.[0] ?? coreWound,
+    belief: situationalBelief,
   })
+  const beliefReasoningBridge = buildBeliefReasoningBridge({
+    pattern: recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null,
+    belief: situationalBelief,
+  })
+  const impliedBeliefSupport = recentTopPattern ?? topPatternOverall ?? null
   const groupedRecentThreads = groupThreadsBySituation(threads)
   const shouldPromptDeeper =
     totalReflections < 6 ||
@@ -309,6 +320,12 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
               <p className="mt-3 text-sm leading-7 text-foreground">&ldquo;{sessionFocus.question}&rdquo;</p>
             </div>
           </div>
+          {beliefReasoningBridge && (
+            <div className="mt-4 rounded-2xl border border-border bg-background/85 px-5 py-5">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Reasoning bridge</p>
+              <p className="mt-3 text-sm leading-7 text-foreground">{beliefReasoningBridge}</p>
+            </div>
+          )}
           <div className="mt-4 rounded-2xl border border-border bg-background/85 px-5 py-5">
             <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">You might explore</p>
             <ul className="mt-3 grid gap-2 text-sm leading-6 text-foreground md:grid-cols-2">
@@ -338,6 +355,23 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
                       Recent thought
                     </p>
                     <p className="mt-2 text-sm leading-6 text-foreground">&ldquo;{recentSample}&rdquo;</p>
+                  </div>
+                )}
+                {(emotionSummary.primary || emotionSummary.secondary.length > 0) && (
+                  <div className="mt-4 rounded-2xl border border-border bg-background/80 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
+                      Emotion summary
+                    </p>
+                    {emotionSummary.primary && (
+                      <p className="mt-2 text-sm leading-6 text-foreground">
+                        Primary emotion: {cap(emotionSummary.primary)}
+                      </p>
+                    )}
+                    {emotionSummary.secondary.length > 0 && (
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        Secondary emotions: {emotionSummary.secondary.map(cap).join(", ")}
+                      </p>
+                    )}
                   </div>
                 )}
               </InsightPanel>
@@ -385,34 +419,64 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
             </div>
           </div>
           <div className="space-y-6">
-            {coreWound && (
+            {situationalBelief && (
               <InsightPanel
-                eyebrow="Core belief"
-                title="Possible recurring belief"
-                description="Emerging signal — based on limited data, may evolve with more reflections."
+                eyebrow="Belief layering"
+                title="Situational belief emerging from recent patterns"
+                description="Grounded in repeated thought patterns before moving to any deeper interpretation."
               >
                 <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
-                  <p className="text-lg font-medium italic text-foreground">&ldquo;{formatBelief(coreWound)}&rdquo;</p>
+                  <p className="text-lg font-medium italic text-foreground">&ldquo;{situationalBelief}&rdquo;</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Observed in {beliefCounts[coreWound]} reflections — early signal, may evolve with more data.
+                    Implied across patterns: {formatPattern(impliedBeliefSupport?.[0] ?? recentTopPattern?.[0] ?? "")} appeared {impliedBeliefSupport?.[1] ?? 0} times.
                   </p>
-                  {coreWoundExample && (
+                  {impliedBeliefSupport && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      This is a situational belief, not a deeper belief, because the strongest signal is repeated uncertainty and negative prediction.
+                    </p>
+                  )}
+                  {beliefReasoningBridge && (
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                      {beliefReasoningBridge}
+                    </p>
+                  )}
+                  {recentSample && (
                     <p className="mt-4 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">
-                      Example: &ldquo;{coreWoundExample}&rdquo;
+                      Example: &ldquo;{recentSample}&rdquo;
                     </p>
                   )}
                 </div>
-                <details className="mt-4 rounded-2xl border border-border bg-background/80">
-                  <summary className="cursor-pointer list-none px-4 py-3 text-sm text-muted-foreground hover:text-foreground">
-                    See examples behind this insight
-                  </summary>
-                  <div className="border-t border-border px-4 py-4">
-                    <EvidenceList
-                      label={`Observed in ${beliefCounts[coreWound]} reflections`}
-                      items={topBeliefEvidence}
-                    />
+                {shouldShowDeeperBelief && coreWound && (
+                  <div className="mt-4 rounded-2xl border border-border bg-background/80 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                      {coreBeliefConfidence === "strong"
+                        ? "Deeper belief"
+                        : "Deeper belief (low confidence)"}
+                    </p>
+                    <p className="mt-3 text-lg font-medium italic text-foreground">
+                      &ldquo;{formatBelief(coreWound)}&rdquo;
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Explicitly observed in {coreWoundCount} reflection{coreWoundCount === 1 ? "" : "s"}.
+                    </p>
+                    {coreWoundExample && (
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                        Example: &ldquo;{coreWoundExample}&rdquo;
+                      </p>
+                    )}
+                    <details className="mt-4 rounded-2xl border border-border bg-background/70">
+                      <summary className="cursor-pointer list-none px-4 py-3 text-sm text-muted-foreground hover:text-foreground">
+                        See examples behind this insight
+                      </summary>
+                      <div className="border-t border-border px-4 py-4">
+                        <EvidenceList
+                          label={`Observed in ${beliefCounts[coreWound]} reflections`}
+                          items={topBeliefEvidence}
+                        />
+                      </div>
+                    </details>
                   </div>
-                </details>
+                )}
               </InsightPanel>
             )}
           </div>
@@ -888,6 +952,32 @@ function countBy<T>(items: T[], key: (item: T) => string | null | undefined): Re
   }, {})
 }
 
+function normalizeExactThoughtText(value: string | null | undefined): string {
+  return (value ?? "").trim().replace(/\s+/g, " ")
+}
+
+function dedupeExactThoughts<
+  T extends {
+    thought: string | null
+  }
+>(items: T[]): T[] {
+  const seen = new Set<string>()
+  const unique: T[] = []
+
+  for (const item of items) {
+    const normalized = normalizeExactThoughtText(item.thought)
+    if (!normalized) {
+      unique.push(item)
+      continue
+    }
+    if (seen.has(normalized)) continue
+    seen.add(normalized)
+    unique.push(item)
+  }
+
+  return unique
+}
+
 function normalizeKey(value: string | null | undefined): string {
   if (!value) return ""
   const k = value.trim().toLowerCase().replace(/[\s_-]+/g, "_")
@@ -935,6 +1025,31 @@ function collectEvidence(
   }
 
   return items
+}
+
+function selectRepresentativeThought<
+  T extends {
+    thought: string
+    automaticThought: string | null
+    createdAt: Date
+  }
+>(thoughts: T[], matcher: (thought: T) => boolean): string | null {
+  const matches = thoughts.filter(matcher)
+  if (!matches.length) return null
+
+  const ranked = matches
+    .map((thought) => ({
+      text: (thought.automaticThought ?? thought.thought).trim(),
+      createdAt: thought.createdAt,
+    }))
+    .filter((thought) => thought.text.length > 0)
+    .sort((a, b) => {
+      const lengthDelta = Math.abs(a.text.length - 90) - Math.abs(b.text.length - 90)
+      if (lengthDelta !== 0) return lengthDelta
+      return b.createdAt.getTime() - a.createdAt.getTime()
+    })
+
+  return ranked[0]?.text ?? null
 }
 
 function groupThreadsBySituation(
@@ -1029,4 +1144,90 @@ function buildSessionFocus({
     ],
     question: "What feels most true to you when this thought shows up?",
   }
+}
+
+function getBeliefConfidence(count: number): "strong" | "low" {
+  return count >= 5 ? "strong" : "low"
+}
+
+function deriveSituationalBelief(pattern: string | null) {
+  const normalizedPattern = normalizeKey(pattern)
+
+  if (normalizedPattern === "fortune_telling" || normalizedPattern === "uncertainty_intolerance") {
+    return "I may not get the outcome I want"
+  }
+
+  if (normalizedPattern === "catastrophizing") {
+    return "This may turn out badly"
+  }
+
+  if (normalizedPattern === "mind_reading") {
+    return "They may be seeing this negatively"
+  }
+
+  if (normalizedPattern === "self_criticism") {
+    return "This may mean I did something wrong"
+  }
+
+  if (normalizedPattern === "overgeneralization") {
+    return "This setback may say something bigger about how things go for me"
+  }
+
+  return null
+}
+
+function buildBeliefReasoningBridge({
+  pattern,
+  belief,
+}: {
+  pattern: string | null
+  belief: string | null
+}) {
+  const normalizedPattern = normalizeKey(pattern)
+  if (!belief) return null
+
+  if (normalizedPattern === "fortune_telling" || normalizedPattern === "uncertainty_intolerance") {
+    return "Repeated negative predictions in uncertain situations may be shaping a situational belief like this."
+  }
+
+  if (normalizedPattern === "mind_reading") {
+    return "Repeated assumptions about how others may be seeing them may be shaping a situational belief like this."
+  }
+
+  if (normalizedPattern === "catastrophizing") {
+    return "Linking uncertainty to the most painful possible outcome may be shaping a situational belief like this."
+  }
+
+  if (normalizedPattern === "self_criticism") {
+    return "Repeated self-judgment after difficult moments may be shaping a situational belief like this."
+  }
+
+  return `This belief may be forming through repeated ${formatPattern(
+    normalizedPattern || pattern
+  ).toLowerCase()} across reflections.`
+}
+
+function summarizeEmotions(
+  thoughts: Array<{ emotion: string | null | undefined }>
+) {
+  const counts = countBy(thoughts, (thought) => normalizeEmotionCategory(thought.emotion))
+  const entries = Object.entries(counts).sort(([, a], [, b]) => b - a)
+
+  return {
+    primary: entries[0]?.[0] ?? null,
+    secondary: entries.slice(1, 3).map(([emotion]) => emotion).filter(Boolean),
+  }
+}
+
+function normalizeEmotionCategory(emotion: string | null | undefined) {
+  const normalized = normalizeKey(emotion)
+  if (!normalized) return ""
+  if (normalized.includes("anx")) return "anxiety"
+  if (normalized.includes("sad") || normalized.includes("empty") || normalized.includes("hopeless")) {
+    return "sadness"
+  }
+  if (normalized.includes("disappoint") || normalized.includes("frustrat")) {
+    return "disappointment"
+  }
+  return ""
 }

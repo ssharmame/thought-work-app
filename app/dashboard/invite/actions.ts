@@ -14,55 +14,48 @@ export async function inviteClient(formData: FormData) {
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
   const practitioner = await prisma.userProfile.findUnique({
     where: { id: user.id },
     select: { role: true },
   })
-  if (!practitioner || practitioner.role !== "PRACTITIONER") {
-    redirect("/tool")
-  }
+  if (!practitioner || practitioner.role !== "PRACTITIONER") redirect("/tool")
 
-  // Check if this client email already exists
+  // Check if a UserProfile already exists for this email
   const existingProfile = await prisma.userProfile.findUnique({
     where: { email },
   })
 
   if (existingProfile) {
+    // User already has an account — just link them, no email needed
     if (existingProfile.practitionerId === user.id) {
-      // Already their client
       redirect("/dashboard/invite?error=already_client")
     }
-    // Link existing user to this practitioner
     await prisma.userProfile.update({
       where: { id: existingProfile.id },
       data: {
         practitionerId: user.id,
+        role: "CLIENT",
         name: clientName ?? existingProfile.name,
       },
     })
-  } else {
-    // Pre-create a placeholder profile so when they first log in
-    // their practitioner link is already set
-    await prisma.userProfile.create({
-      data: {
-        // Temporary placeholder id — will be replaced on first auth callback
-        // We store by email and match on callback
-        id: `pending_${Date.now()}_${email.replace(/[^a-z0-9]/g, "_")}`,
-        email,
-        name: clientName,
-        role: "CLIENT",
-        practitionerId: user.id,
-      },
-    })
+    // They're already signed up — redirect straight to dashboard
+    redirect("/dashboard?linked=1")
   }
 
-  // Send magic link invite via Supabase admin client
+  // New user — pre-create placeholder and send invite email
+  await prisma.userProfile.create({
+    data: {
+      id: `pending_${Date.now()}_${email.replace(/[^a-z0-9]/g, "_")}`,
+      email,
+      name: clientName,
+      role: "CLIENT",
+      practitionerId: user.id,
+    },
+  })
+
   const adminClient = createAdminClient()
   const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
@@ -74,6 +67,10 @@ export async function inviteClient(formData: FormData) {
 
   if (error) {
     console.error("Invite error:", error)
+    // Clean up placeholder if email failed
+    await prisma.userProfile.deleteMany({
+      where: { email, id: { startsWith: "pending_" } },
+    })
     redirect("/dashboard/invite?error=send_failed")
   }
 

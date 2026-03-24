@@ -6,7 +6,6 @@ import {
   generateStoryEmotionStage,
   generatePatternStage,
   generateBalancedStage,
-  inferEmotionFromText,
   type RecognitionContext,
   type ThoughtContext,
 } from "@/lib/ai"
@@ -122,6 +121,20 @@ const patternSchema: SchemaValidator = {
 const balancedSchema: SchemaValidator = {
   stage: (value) => value === "balanced",
   balancedThought: isNonEmptyString,
+  steadierWay: isNonEmptyString,
+  situationalBelief: (value) => value === undefined || value === null || isNonEmptyString(value),
+  situationalBeliefConfidence: (value) =>
+    value === undefined || value === null || value === "medium",
+  observedAcrossPatterns: (value) => value === undefined || value === null || isNonEmptyString(value),
+  beliefType: (value) => value === undefined || value === null || value === "situational",
+  whyThisLevel: (value) => value === undefined || value === null || isNonEmptyString(value),
+  deeperBelief: (value) => value === undefined || value === null || isNonEmptyString(value),
+  deeperBeliefConfidence: (value) =>
+    value === undefined || value === null || value === "low" || value === "strong",
+  deeperBeliefReason: (value) => value === undefined || value === null || isNonEmptyString(value),
+  reasoningBridge: (value) => value === undefined || value === null || isNonEmptyString(value),
+  alternativePossibility: (value) => value === undefined || value === null || isNonEmptyString(value),
+  beliefExample: (value) => value === undefined || value === null || isNonEmptyString(value),
 }
 
 
@@ -400,7 +413,7 @@ export async function POST(req: Request) {
           }),
         () => ({
           story: extractedStory,
-          emotions: [inferEmotionFromText(extractedStory) ?? "anxiety"],
+          emotions: [],
         }),
         storyEmotionSchema,
         "story_emotion"
@@ -409,7 +422,7 @@ export async function POST(req: Request) {
       emotions = storyEmotion.emotions
 
       if (!emotions.length) {
-        emotions = [inferEmotionFromText(extractedStory) ?? "anxiety"]
+        emotions = []
       }
 
       const currentSituation = threadSituation ?? situation ?? normalizedThought
@@ -429,7 +442,7 @@ export async function POST(req: Request) {
       const recognitionContext: RecognitionContext = {
         situation: factStory.situation,
         story: factStory.story,
-        emotion: factStory.emotions?.[0]?.trim() || "uncertainty",
+        emotion: factStory.emotions?.[0]?.trim() || "",
         previousThoughts,
         previousPatterns,
       }
@@ -454,7 +467,7 @@ export async function POST(req: Request) {
         situation: currentSituation,
         interpretation: story,
         originalThought: normalizedThought,
-        emotion: factStory.emotions?.[0]?.trim() || "uncertainty",
+        emotion: factStory.emotions?.[0]?.trim() || "",
         previousThoughts,
         previousPatterns,
         historyLength: effectiveThreadHistory.length,

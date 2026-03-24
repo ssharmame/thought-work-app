@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
+import { claimAnonymousSessions } from "@/repositories/thought.repositories"
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -22,6 +23,17 @@ export async function GET(request: Request) {
           user.user_metadata ?? {}
         )
 
+        // Claim any anonymous sessions from before login.
+        // Read the visitorId cookie stamped by the tool page.
+        const cookieHeader = request.headers.get("cookie") ?? ""
+        const visitorIdMatch = cookieHeader.match(/tl_claim_visitor=([^;]+)/)
+        const claimVisitorId = visitorIdMatch?.[1]?.trim()
+
+        if (isNew && claimVisitorId) {
+          // Stamp userId onto all threads/thoughts from this visitor
+          await claimAnonymousSessions(claimVisitorId, user.id).catch(() => {})
+        }
+
         // New users → onboarding to pick their role
         // Invited clients skip onboarding (role already set to CLIENT)
         // Returning users → route by role
@@ -37,13 +49,16 @@ export async function GET(request: Request) {
         const forwardedHost = request.headers.get("x-forwarded-host")
         const isLocalEnv = process.env.NODE_ENV === "development"
 
-        if (isLocalEnv) {
-          return NextResponse.redirect(`${origin}${destination}`)
-        } else if (forwardedHost) {
-          return NextResponse.redirect(`https://${forwardedHost}${destination}`)
-        } else {
-          return NextResponse.redirect(`${origin}${destination}`)
-        }
+        // Clear the claim cookie in the redirect response
+        const redirectUrl = isLocalEnv
+          ? `${origin}${destination}`
+          : forwardedHost
+            ? `https://${forwardedHost}${destination}`
+            : `${origin}${destination}`
+
+        const response = NextResponse.redirect(redirectUrl)
+        response.cookies.set("tl_claim_visitor", "", { maxAge: 0, path: "/" })
+        return response
       }
     }
   }
