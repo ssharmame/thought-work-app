@@ -1309,10 +1309,18 @@ Balanced perspective guidelines:
    a few days is within normal response time — add it as a third sentence.
    Only include this if it is factually grounded in the situation.
    Do not invent facts.
+   CRITICAL: Never introduce facts the person did not explicitly state.
+   That means:
+   - do NOT say they were not rejected unless they said that
+   - do NOT say nobody replied unless they said that
+   - do NOT say they have or have not applied unless they said that
+   - do NOT fill in process details, outcomes, or history
+   If a grounding fact is missing, stay neutral instead of adding one.
+   It is better to say "I may not have the full picture yet" than to invent context.
    IMPORTANT: Do NOT use generic industry statistics or platitudes as grounding facts.
    Bad example: "Many startups take a while to secure funding." (generic, impersonal)
    Bad example: "Most founders face this at some point." (reassurance, not grounding)
-   Good example: "I haven't heard back yet, but I haven't been rejected either." (specific to the actual situation)
+   Good example: "I don't know the outcome yet." (neutral, grounded)
 
 Total: 2–3 short sentences maximum.
 
@@ -1398,8 +1406,8 @@ Example: "Maybe I'm scared that failure here says something permanent about me."
 
 TYPE B — Introduce a genuine alternative explanation for the situation.
 A realistic possibility the mind hasn't considered.
-Example: "Maybe they're still reviewing all candidates."
-Example: "Maybe the delay is about their process, not my performance."
+Example: "Maybe I don't have the full picture yet."
+Example: "Maybe there are other explanations I can't see from here."
 
 TYPE C — Redirect toward something I can actually control or do.
 A grounded, agency-restoring thought — not advice, just a direction.
@@ -1410,6 +1418,8 @@ STRICT RULES:
 1. Generate exactly one suggestion of each type — one A, one B, one C.
 2. NEVER generate thoughts that assume what others think negatively about me.
 3. NEVER generate thoughts that predict failure or rejection.
+4. NEVER introduce facts or history the person did not explicitly state.
+5. If information is missing, keep the suggestion neutral rather than specific.
 4. NEVER extend or deepen the current negative pattern.
 5. NEVER give advice using "should" or "must".
 6. NEVER offer reassurance like "it will be fine".
@@ -1423,11 +1433,12 @@ BAD examples — never generate these:
 "Maybe I didn't explain my work clearly."
 "Maybe they believe someone else is more qualified."
 "Maybe I'm just not cut out for this."
+"Maybe I haven't received any rejections yet."
 
 GOOD examples — generate these instead:
 "Maybe I'm scared this says something about my worth."
-"Maybe they're still in the middle of their process."
-"Maybe I could reach out after a few more days."
+"Maybe I don't know enough yet to land on one explanation."
+"Maybe I could decide what I want to do once I have more information."
 
 Return JSON:
 {
@@ -1531,12 +1542,16 @@ Anchor them to what is stable or true right now.
 Not a promise about the future.
 Not "everything will be okay."
 Something that is factually true in this moment.
+Do NOT introduce facts that were not explicitly stated by the person.
+If their words do not give a concrete fact to anchor to, use a neutral present fact such as:
+"You are here right now."
+"That thought is here, and so are you."
 
 Examples:
 
 Thought: "I think I'm going to be fired"
 Acknowledgement: "Waiting for news like that is one of the worst feelings."
-Reassurance: "Right now, in this moment, you are safe."
+Reassurance: "You are here right now."
 
 Thought: "I'm running a startup with no funding"
 Acknowledgement: "Building something without a safety net takes real courage — and real worry."
@@ -1548,7 +1563,7 @@ Reassurance: "What happened was real. So is the fact that you got through it."
 
 Thought: "I said something awkward and can't stop thinking about it"
 Acknowledgement: "The mind replays those moments far longer than anyone else remembers them."
-Reassurance: "The moment has passed. You are okay right now."
+Reassurance: "That moment has passed. You are here right now."
 
 Thought: "I have been unemployed for 3 months"
 Acknowledgement: "Three months of uncertainty takes a real toll on a person."
@@ -1588,12 +1603,12 @@ Thought:
         : "",
       reassurance: typeof parsed.reassurance === "string"
         ? parsed.reassurance.trim()
-        : "Right now, in this moment, you are okay.",
+        : "You are here right now.",
     }
   } catch {
     return {
       acknowledgement: "",
-      reassurance: "Right now, in this moment, you are okay.",
+      reassurance: "You are here right now.",
     }
   }
 }

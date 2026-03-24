@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma"
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get("code")
-  const next = searchParams.get("next") ?? "/"
 
   if (code) {
     const supabase = await createClient()
@@ -17,21 +16,23 @@ export async function GET(request: Request) {
       } = await supabase.auth.getUser()
 
       if (user) {
-        // Upsert UserProfile — safe to call on every login
-        await ensureUserProfile(
+        const { isNew, role } = await ensureUserProfile(
           user.id,
           user.email ?? null,
           user.user_metadata ?? {}
         )
 
-        // Route by role
-        const profile = await prisma.userProfile.findUnique({
-          where: { id: user.id },
-          select: { role: true },
-        })
-
-        const destination =
-          profile?.role === "PRACTITIONER" ? "/dashboard" : "/tool"
+        // New users → onboarding to pick their role
+        // Invited clients skip onboarding (role already set to CLIENT)
+        // Returning users → route by role
+        let destination: string
+        if (isNew && !role) {
+          destination = "/onboarding"
+        } else if (role === "PRACTITIONER") {
+          destination = "/dashboard"
+        } else {
+          destination = "/tool"
+        }
 
         const forwardedHost = request.headers.get("x-forwarded-host")
         const isLocalEnv = process.env.NODE_ENV === "development"
@@ -51,11 +52,12 @@ export async function GET(request: Request) {
   return NextResponse.redirect(`${origin}/auth/login?error=send_failed`)
 }
 
+// Returns isNew (true on first login) and the role if already determined
 async function ensureUserProfile(
   userId: string,
   email: string | null,
   userMeta?: Record<string, unknown>
-) {
+): Promise<{ isNew: boolean; role: string | null }> {
   const existing = await prisma.userProfile.findUnique({
     where: { id: userId },
   })
@@ -67,7 +69,7 @@ async function ensureUserProfile(
       : null
 
     if (pendingProfile && pendingProfile.id.startsWith("pending_")) {
-      // Replace placeholder with real auth UUID
+      // Invited client — replace placeholder with real auth UUID, role already CLIENT
       await prisma.userProfile.delete({ where: { id: pendingProfile.id } })
       await prisma.userProfile.create({
         data: {
@@ -78,25 +80,36 @@ async function ensureUserProfile(
           practitionerId: pendingProfile.practitionerId,
         },
       })
+      return { isNew: true, role: "CLIENT" }
     } else {
-      // Fresh signup — check if invited via user metadata
+      // Brand new signup — create with no meaningful role yet, send to onboarding
       const practitionerId =
         (userMeta?.practitioner_id as string | undefined) ?? null
       const isInvitedAsClient = userMeta?.invited_as_client === true
+
+      const role = isInvitedAsClient ? "CLIENT" : null
 
       await prisma.userProfile.create({
         data: {
           id: userId,
           email,
-          role: isInvitedAsClient ? "CLIENT" : "CLIENT",
+          // Use CLIENT as DB default but flag isNew so we send to onboarding
+          // unless they were explicitly invited as a client
+          role: role ?? "CLIENT",
           practitionerId,
         },
       })
+      // null role signals "needs onboarding" — invited clients already know their role
+      return { isNew: true, role }
     }
-  } else if (email && existing.email !== email) {
-    await prisma.userProfile.update({
-      where: { id: userId },
-      data: { email },
-    })
+  } else {
+    // Returning user — update email if changed
+    if (email && existing.email !== email) {
+      await prisma.userProfile.update({
+        where: { id: userId },
+        data: { email },
+      })
+    }
+    return { isNew: false, role: existing.role }
   }
 }
