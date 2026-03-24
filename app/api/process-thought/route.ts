@@ -11,6 +11,7 @@ import {
   type ThoughtContext,
 } from "@/lib/ai"
 import { randomUUID } from "crypto"
+import { createClient } from "@/lib/supabase/server"
 
 import { detectSelfHarm } from "@/services/safety.service"
 import { handleClassification } from "@/services/decision.service"
@@ -106,11 +107,8 @@ const factStorySchema: SchemaValidator = {
 
 const recognitionSchema: SchemaValidator = {
   stage: (value) => value === "recognition",
-  prompt: isNonEmptyString,
-  suggestions: (value) =>
-    Array.isArray(value) &&
-    (value.length === 0 ||
-      value.every((item) => typeof item === "string" && item.trim().length > 0)),
+  reflection: isNonEmptyString,
+  prompt: (value) => value === undefined || isNonEmptyString(value),
 }
 
 const patternSchema: SchemaValidator = {
@@ -178,6 +176,18 @@ export async function POST(req: Request) {
         createGuidanceResponse("Missing context identifiers"),
         { status: 400 }
       )
+    }
+
+    // Resolve authenticated userId if available — used to associate thoughts with
+    // a real user account (practitioners can then see their clients' patterns).
+    // Falls back to null for anonymous/unauthenticated sessions.
+    let userId: string | null = null
+    try {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      userId = user?.id ?? null
+    } catch {
+      // Auth check failure is non-fatal — continue anonymously
     }
 
     const normalizedThought = thought.trim()
@@ -271,6 +281,7 @@ export async function POST(req: Request) {
       sessionId,
       threadId: threadIdForAnalysis,
       threadTitle,
+      userId,
     })
 
     const threadContext = await fetchThreadContext(threadIdForAnalysis)
@@ -505,6 +516,7 @@ export async function POST(req: Request) {
         threadId: analysisThreadId,
         sessionId,
         visitorId,
+        userId,
         analysis: {
           situation: analysis.situation ?? "",
           automaticThought: analysis.automaticThought ?? "",

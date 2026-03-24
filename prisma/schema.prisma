@@ -6,6 +6,30 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── Auth / Identity ─────────────────────────────────────────────────────────
+
+// Mirrors auth.users from Supabase. id = Supabase auth UUID.
+model UserProfile {
+  id             String        @id               // matches auth.users.id
+  role           Role          @default(CLIENT)
+  name           String?
+  email          String?       @unique
+  // For CLIENT accounts: which practitioner invited them
+  practitionerId String?
+  practitioner   UserProfile?  @relation("PractitionerClients", fields: [practitionerId], references: [id])
+  clients        UserProfile[] @relation("PractitionerClients")
+  threads        Thread[]
+  thoughts       ThoughtEntry[]
+  createdAt      DateTime      @default(now())
+}
+
+enum Role {
+  PRACTITIONER
+  CLIENT
+}
+
+// ─── Legacy anonymous tracking (kept for backward compat) ─────────────────────
+
 model Visitor {
   id        String    @id @default(uuid())
   firstSeen DateTime  @default(now())
@@ -23,17 +47,23 @@ model Session {
   createdAt DateTime     @default(now())
 }
 
+// ─── Core domain ──────────────────────────────────────────────────────────────
+
 model Thread {
   id        String        @id @default(uuid())
   sessionId String
   visitorId String
+  userId    String?       // authenticated user (null for anonymous)
   title     String?
   situation String?
   session   Session       @relation(fields: [sessionId], references: [id])
   visitor   Visitor       @relation(fields: [visitorId], references: [id])
+  user      UserProfile?  @relation(fields: [userId], references: [id])
   thoughts  ThoughtEntry[]
   insight   ThreadInsight?
   createdAt DateTime      @default(now())
+
+  @@index([userId])
 }
 
 model ThoughtEntry {
@@ -41,6 +71,7 @@ model ThoughtEntry {
   threadId           String?
   sessionId          String?
   visitorId          String?
+  userId             String?   // authenticated user (null for anonymous)
   thought            String
   intent             String   @default("THOUGHT")
   status             String   @default("REFLECTION_COMPLETE")
@@ -56,11 +87,13 @@ model ThoughtEntry {
   normalization      String?
   createdAt          DateTime  @default(now())
 
-  thread   Thread?   @relation(fields: [threadId], references: [id])
-  session  Session?  @relation(fields: [sessionId], references: [id])
-  visitor  Visitor?  @relation(fields: [visitorId], references: [id])
+  thread   Thread?      @relation(fields: [threadId], references: [id])
+  session  Session?     @relation(fields: [sessionId], references: [id])
+  visitor  Visitor?     @relation(fields: [visitorId], references: [id])
+  user     UserProfile? @relation(fields: [userId], references: [id])
 
   @@index([createdAt])
+  @@index([userId])
 }
 
 model ThreadInsight {

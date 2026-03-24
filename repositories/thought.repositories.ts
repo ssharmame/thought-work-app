@@ -22,7 +22,13 @@ export async function upsertSession(sessionId: string, visitorId: string) {
   })
 }
 
-export async function upsertThread(threadId: string, sessionId: string, visitorId: string, title?: string) {
+export async function upsertThread(
+  threadId: string,
+  sessionId: string,
+  visitorId: string,
+  title?: string,
+  userId?: string
+) {
   return prisma.thread.upsert({
     where: { id: threadId },
     update: { title },
@@ -30,7 +36,8 @@ export async function upsertThread(threadId: string, sessionId: string, visitorI
       id: threadId,
       sessionId,
       visitorId,
-      title
+      userId: userId ?? null,
+      title,
     }
   })
 }
@@ -60,6 +67,7 @@ export function buildThoughtEntryData(
     threadId: string
     sessionId: string
     visitorId: string
+    userId?: string
   },
   analysis: ThoughtEntryFields,
 ): Prisma.ThoughtEntryUncheckedCreateInput {
@@ -70,6 +78,7 @@ export function buildThoughtEntryData(
     threadId: base.threadId,
     sessionId: base.sessionId,
     visitorId: base.visitorId,
+    userId: base.userId ?? null,
     situation: analysis.situation,
     automaticThought: analysis.automaticThought,
     story: analysis.story,

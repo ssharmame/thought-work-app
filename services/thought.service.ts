@@ -16,6 +16,7 @@ export type ContextPayload = {
   sessionId: string
   threadId: string
   threadTitle?: string
+  userId?: string | null
 }
 
 export type SaveThoughtParams = {
@@ -25,13 +26,20 @@ export type SaveThoughtParams = {
   threadId: string
   sessionId: string
   visitorId: string
+  userId?: string | null
   analysis: ThoughtEntryFields
 }
 
 export async function ensureThreadContext(payload: ContextPayload) {
   await upsertVisitor(payload.visitorId)
   await upsertSession(payload.sessionId, payload.visitorId)
-  await upsertThread(payload.threadId, payload.sessionId, payload.visitorId, payload.threadTitle)
+  await upsertThread(
+    payload.threadId,
+    payload.sessionId,
+    payload.visitorId,
+    payload.threadTitle,
+    payload.userId ?? undefined
+  )
 }
 
 export async function fetchRecentThoughts(sessionId: string, limit = 5) {
@@ -70,6 +78,7 @@ export async function saveThoughtReflection(params: SaveThoughtParams) {
       threadId: params.threadId,
       sessionId: params.sessionId,
       visitorId: params.visitorId,
+      userId: params.userId ?? undefined,
     },
     params.analysis,
   )
