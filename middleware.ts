@@ -48,12 +48,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages → tool is the default landing
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route))
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone()
-    // Redirect practitioners to dashboard, clients to tool
-    url.pathname = "/dashboard"
+    url.pathname = "/tool"
     return NextResponse.redirect(url)
   }
 

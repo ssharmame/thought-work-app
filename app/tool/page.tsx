@@ -7,6 +7,7 @@ import { PATTERN_DISPLAY } from "@/lib/ai";
 import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 
 // Safety-net: convert noun-form emotions to adjective form in case AI returns the wrong form
@@ -524,9 +525,69 @@ function FadeUp({
   );
 }
 
+function UserMenu({ email, role }: { email: string; role: string | null }) {
+  const [open, setOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/auth/login";
+  };
+
+  // First letter of email as avatar
+  const initial = email[0]?.toUpperCase() ?? "?";
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-8 h-8 rounded-full bg-foreground/10 border border-border flex items-center justify-center text-sm font-medium text-foreground hover:bg-foreground/15 transition-colors"
+        title={email}
+      >
+        {initial}
+      </button>
+
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setOpen(false)}
+          />
+          {/* Dropdown */}
+          <div className="absolute right-0 top-10 z-50 w-52 rounded-xl bg-background border border-border shadow-lg py-1 text-sm">
+            <div className="px-4 py-2.5 border-b border-border">
+              <p className="text-xs text-muted-foreground truncate">{email}</p>
+            </div>
+            {role === "PRACTITIONER" && (
+              <a
+                href="/dashboard"
+                className="flex items-center px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
+                onClick={() => setOpen(false)}
+              >
+                Dashboard
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="w-full text-left flex items-center px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
   const [thought, setThought] = useState("");
   const [analysis, setAnalysis] = useState<ThoughtAnalysisResult | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [clarification, setClarification] = useState<ClarificationState | null>(
     null,
   );
@@ -610,6 +671,21 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: initializeContext is stable
   useEffect(() => {
     if (initializeContext()) setContextReady(true);
+  }, []);
+
+  // Fetch current auth user
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserEmail(user.email ?? null);
+        // Fetch role from API
+        fetch("/api/me")
+          .then((r) => r.json())
+          .then((d) => setUserRole(d.role ?? null))
+          .catch(() => {});
+      }
+    });
   }, []);
 
 
@@ -1161,7 +1237,13 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
           <span className="font-display text-xl font-semibold text-foreground tracking-tight">
             Thoughtlensai
           </span>
-          <div className="w-20" />
+          <div className="w-20 flex justify-end">
+            {userEmail ? (
+              <UserMenu email={userEmail} role={userRole} />
+            ) : (
+              <div />
+            )}
+          </div>
         </nav>
       </header>
 
