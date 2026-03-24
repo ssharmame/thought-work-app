@@ -191,16 +191,17 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
     : []
   const emotionSummary = summarizeEmotions(uniqueThoughts)
   const situationalBelief = deriveSituationalBelief(recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null)
+  const structuredBelief = buildStructuredBelief({
+    pattern: recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null,
+    patternCount: recentTopPattern?.[1] ?? topPatternOverall?.[1] ?? 0,
+    situationalBelief,
+    example: recentSample,
+  })
   const sessionFocus = buildSessionFocus({
     pattern: recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null,
     emotion: recentTopEmotion?.[0] ?? topEmotionOverall?.[0] ?? null,
     belief: situationalBelief,
   })
-  const beliefReasoningBridge = buildBeliefReasoningBridge({
-    pattern: recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null,
-    belief: situationalBelief,
-  })
-  const impliedBeliefSupport = recentTopPattern ?? topPatternOverall ?? null
   const groupedRecentThreads = groupThreadsBySituation(threads)
   const shouldPromptDeeper =
     totalReflections < 6 ||
@@ -302,8 +303,8 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
 
         <InsightPanel
           eyebrow="Session bridge"
-          title="Suggested session focus"
-          description="A starting point for your next conversation."
+          title="Next session starting point (based on last 7 days)"
+          description="Use this to open the conversation and orient your focus."
           className="border-[1.5px]"
           panelStyle={{
             background:
@@ -311,26 +312,33 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
             boxShadow: "0 18px 46px oklch(0.46 0.12 152 / 0.08)",
           }}
         >
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          {/* Opening line */}
+          <div className="rounded-2xl border border-border bg-background/85 px-5 py-5">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">How you might open the session</p>
+            <p className="mt-3 text-sm leading-7 text-foreground italic">&ldquo;{sessionFocus.opening}&rdquo;</p>
+          </div>
+
+          {/* Why this matters */}
+          <div className="mt-4 rounded-2xl border border-border bg-background/85 px-5 py-5">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Why this matters</p>
+            <p className="mt-3 text-sm leading-7 text-foreground">{sessionFocus.whyItMatters}</p>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="rounded-2xl border border-border bg-background/85 px-5 py-5">
-              <p className="text-sm leading-7 text-foreground">{sessionFocus.summary}</p>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">What's been showing up</p>
+              <p className="mt-3 text-sm leading-7 text-foreground">{sessionFocus.summary}</p>
             </div>
             <div className="rounded-2xl border border-border bg-background/85 px-5 py-5">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Suggested question</p>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Follow-up question</p>
               <p className="mt-3 text-sm leading-7 text-foreground">&ldquo;{sessionFocus.question}&rdquo;</p>
             </div>
           </div>
-          {beliefReasoningBridge && (
-            <div className="mt-4 rounded-2xl border border-border bg-background/85 px-5 py-5">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Reasoning bridge</p>
-              <p className="mt-3 text-sm leading-7 text-foreground">{beliefReasoningBridge}</p>
-            </div>
-          )}
           <div className="mt-4 rounded-2xl border border-border bg-background/85 px-5 py-5">
             <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">You might explore</p>
             <ul className="mt-3 grid gap-2 text-sm leading-6 text-foreground md:grid-cols-2">
               {sessionFocus.explore.map((item) => (
-                <li key={item}>- {item}</li>
+                <li key={item}>— {item}</li>
               ))}
             </ul>
           </div>
@@ -381,8 +389,8 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
               {sortedPatterns.length > 0 && (
                 <InsightPanel
                   eyebrow="Patterns"
-                  title="Most frequent pattern observed"
-                  description="Top themes across reflections."
+                  title="Patterns noticed across reflections"
+                  description="Most frequent themes based on reflections."
                 >
                   <div className="space-y-3">
                     {visiblePatterns.map(([pattern, count]) => {
@@ -404,11 +412,11 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
                   {topPatternOverall && (
                     <details className="mt-4 rounded-2xl border border-border bg-background/80">
                       <summary className="cursor-pointer list-none px-4 py-3 text-sm text-muted-foreground hover:text-foreground">
-                        See examples behind this insight
+                        See reflections behind this signal
                       </summary>
                       <div className="border-t border-border px-4 py-4">
                         <EvidenceList
-                          label={`Observed in ${topPatternOverall[1]} reflections`}
+                          label={`Noticed in ${topPatternOverall[1]} reflections`}
                           items={topPatternEvidence}
                         />
                       </div>
@@ -419,58 +427,89 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
             </div>
           </div>
           <div className="space-y-6">
-            {situationalBelief && (
+            {structuredBelief && (
               <InsightPanel
                 eyebrow="Belief layering"
-                title="Situational belief emerging from recent patterns"
-                description="Grounded in repeated thought patterns before moving to any deeper interpretation."
+                title="Situational belief forming from recent patterns"
+                description="Based on reflections — not a diagnosis. Use as a hypothesis to explore."
               >
-                <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
-                  <p className="text-lg font-medium italic text-foreground">&ldquo;{situationalBelief}&rdquo;</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Implied across patterns: {formatPattern(impliedBeliefSupport?.[0] ?? recentTopPattern?.[0] ?? "")} appeared {impliedBeliefSupport?.[1] ?? 0} times.
-                  </p>
-                  {impliedBeliefSupport && (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      This is a situational belief, not a deeper belief, because the strongest signal is repeated uncertainty and negative prediction.
-                    </p>
-                  )}
-                  {beliefReasoningBridge && (
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      {beliefReasoningBridge}
-                    </p>
-                  )}
-                  {recentSample && (
-                    <p className="mt-4 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">
-                      Example: &ldquo;{recentSample}&rdquo;
-                    </p>
-                  )}
+                {/* 1. Belief */}
+                <div className="rounded-2xl border border-border bg-background/80 px-5 py-5">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground mb-2">What may be forming</p>
+                  <p className="text-xl font-medium italic text-foreground">&ldquo;{structuredBelief.belief}&rdquo;</p>
                 </div>
+
+                {/* 2. Observed across + type + confidence */}
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Noticed across</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">{structuredBelief.observedAcrossPatterns.pattern}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{structuredBelief.observedAcrossPatterns.count}× in reflections</p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Belief type</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">{structuredBelief.beliefType}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Not a core belief yet</p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Confidence</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">{structuredBelief.confidence}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Use as a starting point</p>
+                  </div>
+                </div>
+
+                {/* 3. Why this level */}
+                <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Why this confidence level</p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">{structuredBelief.whyThisLevel}</p>
+                </div>
+
+                {/* 4. Reasoning */}
+                <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Reasoning</p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">{structuredBelief.reasoning}</p>
+                </div>
+
+                {/* 5. Alternative */}
+                <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Alternative possibility</p>
+                  <p className="mt-2 text-sm leading-6 text-foreground">{structuredBelief.alternative}</p>
+                </div>
+
+                {/* 6. Example */}
+                {structuredBelief.example && (
+                  <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Example from reflections</p>
+                    <p className="mt-2 text-sm leading-6 text-foreground italic">&ldquo;{structuredBelief.example}&rdquo;</p>
+                  </div>
+                )}
+
+                {/* Deeper belief (only when strong evidence) */}
                 {shouldShowDeeperBelief && coreWound && (
                   <div className="mt-4 rounded-2xl border border-border bg-background/80 px-4 py-4">
                     <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
                       {coreBeliefConfidence === "strong"
-                        ? "Deeper belief"
-                        : "Deeper belief (low confidence)"}
+                        ? "Deeper belief — stronger signal"
+                        : "Possible deeper belief (low confidence)"}
                     </p>
                     <p className="mt-3 text-lg font-medium italic text-foreground">
                       &ldquo;{formatBelief(coreWound)}&rdquo;
                     </p>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Explicitly observed in {coreWoundCount} reflection{coreWoundCount === 1 ? "" : "s"}.
+                      Noticed in {coreWoundCount} reflection{coreWoundCount === 1 ? "" : "s"}.
                     </p>
                     {coreWoundExample && (
-                      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground italic">
                         Example: &ldquo;{coreWoundExample}&rdquo;
                       </p>
                     )}
                     <details className="mt-4 rounded-2xl border border-border bg-background/70">
                       <summary className="cursor-pointer list-none px-4 py-3 text-sm text-muted-foreground hover:text-foreground">
-                        See examples behind this insight
+                        See reflections behind this signal
                       </summary>
                       <div className="border-t border-border px-4 py-4">
                         <EvidenceList
-                          label={`Observed in ${beliefCounts[coreWound]} reflections`}
+                          label={`Noticed in ${beliefCounts[coreWound]} reflections`}
                           items={topBeliefEvidence}
                         />
                       </div>
@@ -507,9 +546,9 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.9fr)]">
               <DeepInsightSection
                 eyebrow="Emotion"
-                title="Most common emotion reported"
-                description="Observed across reflections."
-                preview={topEmotionOverall ? `${cap(topEmotionOverall[0])} across ${topEmotionOverall[1]} reflections` : "No emotional data yet"}
+                title="Emotions noticed in reflections"
+                description="Based on reflections across all sessions."
+                preview={topEmotionOverall ? `${cap(topEmotionOverall[0])} noticed most frequently` : "No emotional data yet"}
               >
                 <div className="flex items-center gap-5">
                   <DonutChart
@@ -532,11 +571,11 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
                 {topEmotionOverall && (
                   <details className="mt-4 rounded-2xl border border-border bg-background/80">
                     <summary className="cursor-pointer list-none px-4 py-3 text-sm text-muted-foreground hover:text-foreground">
-                      See examples behind this insight
+                      See reflections behind this signal
                     </summary>
                     <div className="border-t border-border px-4 py-4">
                       <EvidenceList
-                        label={`Observed in ${topEmotionOverall[1]} reflections`}
+                        label={`Noticed in ${topEmotionOverall[1]} reflections`}
                         items={topEmotionEvidence}
                       />
                     </div>
@@ -547,7 +586,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
               {patternEmotionPairs.length > 0 && (
                 <DeepInsightSection
                   eyebrow="Pattern pairings"
-                  title="Observed links between pattern and emotion"
+                  title="Noticed links between pattern and emotion"
                   description="Signals that may help shape follow-up conversations."
                   preview={`${visiblePairings.length} pairing${visiblePairings.length === 1 ? "" : "s"} shown${hiddenPairingCount > 0 ? `, +${hiddenPairingCount} more` : ""}`}
                 >
@@ -1092,6 +1131,108 @@ function groupThreadsBySituation(
   return Array.from(groups.values()).sort((a, b) => b.latestAt.getTime() - a.latestAt.getTime())
 }
 
+type StructuredBelief = {
+  belief: string
+  observedAcrossPatterns: { pattern: string; count: number }
+  beliefType: "Situational"
+  confidence: "Low" | "Medium" | "High"
+  whyThisLevel: string
+  reasoning: string
+  alternative: string
+  example: string | null
+}
+
+function buildStructuredBelief({
+  pattern,
+  patternCount,
+  situationalBelief,
+  example,
+}: {
+  pattern: string | null
+  patternCount: number
+  situationalBelief: string | null
+  example: string | null
+}): StructuredBelief | null {
+  if (!situationalBelief || !pattern) return null
+  const normalizedPattern = normalizeKey(pattern)
+
+  if (normalizedPattern === "fortune_telling" || normalizedPattern === "uncertainty_intolerance") {
+    return {
+      belief: situationalBelief,
+      observedAcrossPatterns: { pattern: formatPattern(pattern), count: patternCount },
+      beliefType: "Situational",
+      confidence: "Medium",
+      whyThisLevel:
+        "The strongest signal is repeated uncertainty and negative prediction, not stable identity-level conclusions",
+      reasoning:
+        "Repeated negative predictions across uncertain situations appear to be forming this expectation",
+      alternative:
+        "This may also reflect a temporary response to prolonged uncertainty rather than a stable belief",
+      example,
+    }
+  }
+
+  if (normalizedPattern === "catastrophizing") {
+    return {
+      belief: situationalBelief,
+      observedAcrossPatterns: { pattern: formatPattern(pattern), count: patternCount },
+      beliefType: "Situational",
+      confidence: "Medium",
+      whyThisLevel:
+        "The pattern shows situational catastrophizing rather than a fixed identity-level belief",
+      reasoning:
+        "Linking uncertainty to worst-case outcomes repeatedly may be forming this expectation",
+      alternative:
+        "This may reflect a stress response to specific life circumstances rather than a core belief",
+      example,
+    }
+  }
+
+  if (normalizedPattern === "mind_reading") {
+    return {
+      belief: situationalBelief,
+      observedAcrossPatterns: { pattern: formatPattern(pattern), count: patternCount },
+      beliefType: "Situational",
+      confidence: "Medium",
+      whyThisLevel:
+        "Based on repeated assumptions about others' views, not a stable self-concept",
+      reasoning:
+        "Repeated assumptions about how others perceive them may be forming this expectation",
+      alternative:
+        "This may also reflect a heightened need for social approval in a specific period, not a permanent belief",
+      example,
+    }
+  }
+
+  if (normalizedPattern === "self_criticism") {
+    return {
+      belief: situationalBelief,
+      observedAcrossPatterns: { pattern: formatPattern(pattern), count: patternCount },
+      beliefType: "Situational",
+      confidence: "Medium",
+      whyThisLevel:
+        "Repeated self-judgment observed, though not yet enough evidence for a deeper core belief",
+      reasoning:
+        "Repeated self-critical thoughts after difficult moments may be forming this expectation",
+      alternative:
+        "This may reflect a response to a specific setback rather than a fixed self-view",
+      example,
+    }
+  }
+
+  return {
+    belief: situationalBelief,
+    observedAcrossPatterns: { pattern: formatPattern(pattern), count: patternCount },
+    beliefType: "Situational",
+    confidence: "Low",
+    whyThisLevel: "Insufficient evidence for a more confident assessment at this stage",
+    reasoning: `Repeated ${formatPattern(pattern).toLowerCase()} across reflections may be forming this expectation`,
+    alternative:
+      "This may reflect a temporary response to recent events rather than a stable pattern",
+    example,
+  }
+}
+
 function buildSessionFocus({
   pattern,
   emotion,
@@ -1105,7 +1246,9 @@ function buildSessionFocus({
 
   if (normalizedPattern === "fortune_telling" || normalizedPattern === "uncertainty_intolerance") {
     return {
-      summary: `Repeated uncertainty about future outcomes${emotion ? `, often linked with ${emotion}.` : "."}`,
+      summary: `Repeated uncertainty about future outcomes${emotion ? `, often noticed alongside ${emotion}.` : "."}`,
+      opening: "I noticed a pattern of uncertainty and predicting negative outcomes recently. Does that feel accurate to you this week?",
+      whyItMatters: "This pattern is strongly linked with anxiety and may be maintaining distress between sessions.",
       explore: [
         "Fear of negative consequences",
         "Need for certainty before feeling safe",
@@ -1116,7 +1259,9 @@ function buildSessionFocus({
 
   if (normalizedPattern === "mind_reading") {
     return {
-      summary: "Client seems to revisit worries about how others may be seeing or judging them.",
+      summary: "Client has been revisiting worries about how others may be seeing or judging them.",
+      opening: "I noticed you've been thinking quite a bit about how others might be seeing you. Does that resonate with how this week felt?",
+      whyItMatters: "Sensitivity to others' judgments can sustain anxiety and keep the client in a heightened state between sessions.",
       explore: [
         "Sensitivity to other people's reactions",
         "What silence or ambiguity gets taken to mean",
@@ -1128,6 +1273,8 @@ function buildSessionFocus({
   if (normalizedPattern === "catastrophizing") {
     return {
       summary: "Client appears to jump quickly from uncertainty to the most painful outcome.",
+      opening: "I noticed your mind has been jumping to worst-case outcomes quite a bit. Does that feel familiar this week?",
+      whyItMatters: "Catastrophizing can amplify distress and make difficult situations feel unmanageable before they've fully played out.",
       explore: [
         "How quickly the mind moves to worst-case scenarios",
         "What feels especially hard to tolerate in the unknown",
@@ -1136,8 +1283,23 @@ function buildSessionFocus({
     }
   }
 
+  if (normalizedPattern === "self_criticism") {
+    return {
+      summary: `Client is showing a recurring theme of self-judgment${emotion ? `, often noticed alongside ${emotion}.` : "."}`,
+      opening: "I noticed some patterns of self-criticism in your reflections this week. Does that feel accurate?",
+      whyItMatters: "Repeated self-criticism can reinforce low self-esteem and make it harder to take action or ask for support.",
+      explore: [
+        "What keeps bringing this theme back between sessions",
+        "What the thought may be protecting them from feeling",
+      ],
+      question: "What feels most true to you when this thought shows up?",
+    }
+  }
+
   return {
-    summary: `Client is showing a recurring theme${belief ? ` around "${formatBelief(belief)}"` : ""}${emotion ? `, often with ${emotion}.` : "."}`,
+    summary: `Client is showing a recurring theme${belief ? ` around "${formatBelief(belief)}"` : ""}${emotion ? `, often noticed alongside ${emotion}.` : "."}`,
+    opening: "I noticed some recurring themes in your reflections. Does that feel like something worth exploring together today?",
+    whyItMatters: "Recurring thought patterns between sessions often point to the areas where a client is most ready to grow.",
     explore: [
       "What keeps bringing this theme back between sessions",
       "What the thought may be protecting them from feeling",
@@ -1176,36 +1338,6 @@ function deriveSituationalBelief(pattern: string | null) {
   return null
 }
 
-function buildBeliefReasoningBridge({
-  pattern,
-  belief,
-}: {
-  pattern: string | null
-  belief: string | null
-}) {
-  const normalizedPattern = normalizeKey(pattern)
-  if (!belief) return null
-
-  if (normalizedPattern === "fortune_telling" || normalizedPattern === "uncertainty_intolerance") {
-    return "Repeated negative predictions in uncertain situations may be shaping a situational belief like this."
-  }
-
-  if (normalizedPattern === "mind_reading") {
-    return "Repeated assumptions about how others may be seeing them may be shaping a situational belief like this."
-  }
-
-  if (normalizedPattern === "catastrophizing") {
-    return "Linking uncertainty to the most painful possible outcome may be shaping a situational belief like this."
-  }
-
-  if (normalizedPattern === "self_criticism") {
-    return "Repeated self-judgment after difficult moments may be shaping a situational belief like this."
-  }
-
-  return `This belief may be forming through repeated ${formatPattern(
-    normalizedPattern || pattern
-  ).toLowerCase()} across reflections.`
-}
 
 function summarizeEmotions(
   thoughts: Array<{ emotion: string | null | undefined }>

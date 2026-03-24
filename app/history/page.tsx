@@ -418,8 +418,8 @@ function ThreadCard({
 
       {/* Expanded: reflections */}
       <div className="border-t border-border divide-y divide-border">
-        {uniqueThoughts.map((thought, i) => (
-          <ReflectionRow key={thought.id} thought={thought} index={i} />
+        {uniqueThoughts.map((thought) => (
+          <ReflectionRow key={thought.id} thought={thought} />
         ))}
       </div>
     </details>
@@ -689,26 +689,36 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 }
 
-function formatDominantEmotion(emotion: string) {
-  const normalized = normalizeKey(emotion)
-
-  if (normalized.includes("anx")) return "Anxiety"
-  if (normalized.includes("disappoint")) return "Disappointment"
-  if (normalized.includes("sad") || normalized.includes("empty") || normalized.includes("hopeless")) {
-    return "Sadness"
+function formatDominantEmotion(emotion: string): string {
+  // emotion here is the output of normalizeEmotionCategory — a category key
+  const labels: Record<string, string> = {
+    anxiety: "Anxiety",
+    sadness: "Sadness",
+    disappointment: "Disappointment",
+    frustration: "Frustration",
+    shame: "Shame",
+    overwhelm: "Overwhelm",
+    loneliness: "Loneliness",
   }
-  return "Sadness"
+  if (labels[emotion]) return labels[emotion]
+  // Fallback for any raw value that slipped through: capitalize + de-underscore
+  return emotion
+    .replace(/_/g, " ")
+    .replace(/^\w/, (c) => c.toUpperCase())
 }
 
-function normalizeEmotionCategory(emotion: string | null | undefined) {
-  const normalized = normalizeKey(emotion ?? "")
-  if (!normalized) return ""
-  if (normalized.includes("anx")) return "anxiety"
-  if (normalized.includes("disappoint")) return "disappointment"
-  if (normalized.includes("sad") || normalized.includes("empty") || normalized.includes("hopeless")) {
-    return "sadness"
-  }
-  return ""
+function normalizeEmotionCategory(emotion: string | null | undefined): string {
+  const n = normalizeKey(emotion ?? "")
+  if (!n) return ""
+  if (n.includes("anx") || n.includes("worr") || n.includes("panic") || n.includes("fear") || n.includes("scar") || n.includes("dread")) return "anxiety"
+  if (n.includes("sad") || n.includes("empty") || n.includes("hopeless") || n.includes("depress") || n.includes("grief") || n.includes("misera")) return "sadness"
+  if (n.includes("disappoint") || n.includes("frustrat") || n.includes("anger") || n.includes("angry") || n.includes("annoy") || n.includes("irritat") || n.includes("resent")) return "frustration"
+  if (n.includes("shame") || n.includes("embarrass") || n.includes("guilt") || n.includes("humiliat") || n.includes("worthless")) return "shame"
+  if (n.includes("overwhelm") || n.includes("stress") || n.includes("exhaust") || n.includes("burnout") || n.includes("drain")) return "overwhelm"
+  if (n.includes("lonely") || n.includes("isolat") || n.includes("disconnect")) return "loneliness"
+  // Preserve the normalized value rather than discarding it — unknown emotions
+  // still contribute to trend calculations even if we can't categorize them
+  return n
 }
 
 function normalizeSelfPerception(emotion: string | null | undefined) {
