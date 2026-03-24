@@ -516,8 +516,8 @@ function formatRelative(date: Date): string {
   return `${Math.floor(days / 30)}mo ago`
 }
 
-function normalizeKey(s: string): string {
-  return s.trim().toLowerCase().replace(/[\s-]+/g, "_")
+function normalizeKey(s: string | null | undefined): string {
+  return (s ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_")
 }
 
 function normalizeExactThoughtText(value: string | null | undefined): string {

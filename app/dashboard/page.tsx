@@ -345,11 +345,12 @@ function dedupeExactThoughts<
 }
 
 function groupThoughtsByClient(
-  thoughts: Array<{ userId: string; createdAt: Date; pattern: string | null }>
+  thoughts: Array<{ userId: string | null; createdAt: Date; pattern: string | null }>
 ) {
   const grouped = new Map<string, Array<{ createdAt: Date; pattern: string | null }>>()
 
   for (const thought of thoughts) {
+    if (!thought.userId) continue
     const existing = grouped.get(thought.userId) ?? []
     existing.push({ createdAt: thought.createdAt, pattern: thought.pattern })
     grouped.set(thought.userId, existing)
