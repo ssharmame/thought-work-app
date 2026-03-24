@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        classification = await classifyInput(normalizedThought)
+        classification = await classifyInput(normalizedThought, situation)
         break
       } catch (error) {
         console.error(`classify: attempt ${attempt + 1} failed`, error)
@@ -81,7 +81,8 @@ export async function POST(req: Request) {
     const decision = await handleClassification(
       classification.type,
       normalizedThought,
-      classification.valid
+      classification.valid,
+      situation
     )
 
     if (decision.status === "guidance") {

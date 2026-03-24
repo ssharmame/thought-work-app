@@ -303,25 +303,25 @@ BALANCED_THOUGHT
 A thought that already sounds reasonable or reflective.
 shouldRunReflection = false
 message =
-"That actually sounds like a healthy way to look at it. If a fear or worry about this comes up, feel free to share that instead."
+"That actually sounds like a healthy way to look at it. If any worry still lingers around this, we can explore that too."
 
 GOAL_OR_DESIRE
 A statement about something the person wants to do or achieve.
 shouldRunReflection = false
 message =
-"That sounds exciting. When you imagine actually doing it, does any fear or worry come up?"
+"That sounds exciting. When you imagine it happening, does any worry or hesitation come up?"
 
 SITUATION_ONLY
 A description of what happened without an interpretation.
 shouldRunReflection = false
 message =
-"That sounds like it's been sitting with you. When you think about it, what does your mind say it means?"
+"Got it. When you think about this, what's the main worry?"
 
 EMOTION_ONLY
 A feeling without a clear thought about the situation.
 shouldRunReflection = false
 message =
-"That feeling makes sense. What are you most afraid might be true when you feel like this?"
+"That feeling makes sense. When you feel this way, what kind of worry usually comes with it?"
 
 Return JSON only.
 ${situation?.trim() ? `\nThread context (situation already established):\n"""${situation.trim()}"""\nUse this context when classifying — a short or vague follow-up is likely a related thought, not a general question.\n` : ""}
@@ -793,10 +793,9 @@ This is not the first thought the person has shared about this situation.
     : ""
 
   const scopeInstruction = isFollowUp
-    ? `Write a question that builds on what's already been explored in this thread.
-Do not repeat a basic grounding question ("what do you know for certain?") if that territory has already been covered.
-Instead, go one level deeper — ask about the pattern across thoughts, what the person keeps coming back to, or what they're still avoiding looking at.`
-    : `Write a gentle question helping me notice this interpretation.`
+    ? `Write one short reflective line that builds on what has already been explored.
+Do not repeat the same grounding question each turn.`
+    : `Write one short reflective line helping me pause and notice this interpretation.`
 
   const prompt = `
 ${FIRST_PERSON_RULE}
@@ -815,13 +814,13 @@ ${context.emotion}
 ${threadBlock}
 ${scopeInstruction}
 
-This question appears AFTER the person has already seen their full analysis — the fact, the story, the pattern, the balanced view. It sits just before they decide whether to go deeper.
+This reflection appears AFTER the person has already seen their full analysis — the fact, the story, the pattern, the balanced view. It sits just before they decide whether to go deeper.
 
 Its purpose is to create a small moment of pause. A gentle step back. Not to dive deeper into the fear — to create just enough distance to see it more clearly.
 
-Rules for the question:
-- One short, honest question. Not rhetorical.
-- Second person ("you", "your").
+Rules:
+- One short, honest reflection line. It can be a question, but does not have to be.
+- Second person ("you", "your") if asking a question.
 - Maximum 1 sentence. Short. Plain language.
 - Write the way a close friend would actually speak — simple, warm, direct.
 - Do NOT amplify or echo the fear back at them. Do NOT ask what scares them most or what they're most afraid of.
@@ -829,14 +828,13 @@ Rules for the question:
 - Do NOT suggest practical solutions.
 - NEVER use generic references like "this thought" or "that thought" — always name the actual thought using the person's own words. Example: instead of "When your mind says this thought…" write "When your mind says 'I might get a speeding ticket'…"
 
-The question should do ONE of these things:
+The reflection should do ONE of these things:
 1. Create distance: help them see the thought from the outside ("What would you tell a friend who was thinking 'I might get a speeding ticket'?")
 2. Ground in reality: bring them back to what's actually known ("What do you actually know for certain right now?")
 3. Gently open the belief: point toward what assumption is underneath, without amplifying the anxiety ("What does thinking 'I might not get the job' say about what you expect from yourself?")
 
 Good examples:
 - "What would you tell a close friend who had this exact thought?"
-- "What do you actually know for certain right now?"
 - "Is there anything about this situation you might not be seeing fully?"
 - "What would it look like to hold this thought a little more loosely?"
 - "What do you know about how she feels about you right now?" (for relationship fears)
@@ -851,13 +849,7 @@ Return ONLY JSON. Do not include any explanation text outside the JSON.
 
 {
  "stage": "recognition",
- "prompt": "",
- "suggestions": [
-  "",
-  "",
-  "",
-  ""
- ]
+ "reflection": ""
 }
 `
 
@@ -891,7 +883,7 @@ export const PATTERN_DISPLAY: Record<string, {
   question: string
 }> = {
   "fortune telling": {
-    label: "Predicting before knowing",
+    label: "Jumping to what might happen",
     question: "What do you actually know for certain right now?",
   },
   "mind reading": {
@@ -899,11 +891,11 @@ export const PATTERN_DISPLAY: Record<string, {
     question: "What evidence do you have for what they're thinking?",
   },
   "catastrophizing": {
-    label: "Imagining the worst case",
+    label: "Leaning toward the worst-case outcome",
     question: "What's the most realistic outcome — not the worst?",
   },
   "uncertainty intolerance": {
-    label: "Treating uncertainty as a threat",
+    label: "Uncertainty starts feeling dangerous",
     question: "What can you do right now, without needing to know the outcome?",
   },
   "self criticism": {

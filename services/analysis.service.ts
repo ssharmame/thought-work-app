@@ -58,7 +58,7 @@ export function mergeAnalysisStages(
     // Falls back to explanation for backwards compatibility.
     patternExplanation: pattern.patternMessage?.trim() || pattern.explanation?.trim() || null,
     balancedThought: balanced.balancedThought ?? null,
-    reflectionQuestion: recognition.prompt ?? null,
+    reflectionQuestion: recognition.reflection ?? recognition.prompt ?? null,
     normalization: null,
     coreBelief: null,
     trigger: null,

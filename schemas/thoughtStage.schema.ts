@@ -10,8 +10,8 @@ export const factStoryStageSchema = z.object({
 
 export const recognitionStageSchema = z.object({
   stage: z.literal("recognition"),
-  prompt: z.string(),
-  suggestions: z.array(z.string()).min(1),
+  reflection: z.string(),
+  prompt: z.string().optional(),
 })
 
 export const patternStageSchema = z.object({

@@ -66,8 +66,11 @@ type ComputedThreadInsights = {
 type ThoughtHistoryEntry = {
   thought: string;
   analysis: ThoughtAnalysisResult;
+  mode: ResponseMode;
   createdAt: string;
 };
+
+type ResponseMode = "short" | "medium" | "deep";
 
 const patternToInsight = (pattern: string) => {
   const normalized = pattern.toLowerCase();
@@ -139,39 +142,67 @@ type AnalysisCard = {
   question?: string;
 };
 
+const selectResponseMode = (
+  thought: string,
+  historyLength: number,
+): ResponseMode => {
+  if (historyLength >= 3) return "deep";
+  if (historyLength >= 1 || thought.trim().length > 140) return "medium";
+  return "short";
+};
+
+const toNaturalPatternLine = (raw: string): string => {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  if (/^this looks like/i.test(trimmed)) return trimmed;
+  return `This looks like your mind focusing on what might go wrong while the outcome is still unclear.`;
+};
+
 const buildAnalysisCards = (
   analysis: ThoughtAnalysisResult,
-  options?: { includeSituation?: boolean },
+  options?: { includeSituation?: boolean; mode?: ResponseMode },
 ): AnalysisCard[] => {
   const includeSituation = options?.includeSituation ?? true;
+  const mode = options?.mode ?? "short";
   // Use contextual AI message (patternExplanation) directly —
   // no fallback to generic patternToInsight string matching
-  const patternValue = analysis.patternExplanation?.trim() ?? "";
+  const patternValue = toNaturalPatternLine(analysis.patternExplanation ?? "");
+  const emotionValue = analysis.emotion?.trim()
+    ? `It makes sense this could feel ${toEmotionAdjective(analysis.emotion)}.`
+    : "";
+
+  const storyAndEmotion =
+    mode === "short" && emotionValue
+      ? `${analysis.story ?? ""} ${emotionValue}`.trim()
+      : analysis.story ?? "";
+
   const cards: (AnalysisCard | null)[] = [
     includeSituation
       ? {
           key: "fact",
-          title: "Let's start with what we know for sure",
+          title: "What happened",
           value: analysis.situation ?? "",
           style: INSIGHT_CARD_STYLES.fact,
         }
       : null,
     {
       key: "story",
-      title: "What I assumed it meant",
-      value: analysis.story ?? "",
+      title: "Where your mind went next",
+      value: storyAndEmotion,
       style: INSIGHT_CARD_STYLES.story,
     },
-    {
-      key: "emotion",
-      title: "How this made me feel",
-      value: analysis.emotion ?? "",
-      style: INSIGHT_CARD_STYLES.emotion,
-    },
+    mode === "short"
+      ? null
+      : {
+          key: "emotion",
+          title: "How it feels right now",
+          value: analysis.emotion ?? "",
+          style: INSIGHT_CARD_STYLES.emotion,
+        },
     patternValue
       ? {
           key: "pattern",
-          title: "How my mind works in moments like this",
+          title: "A clearer view",
           value: patternValue,
           style: INSIGHT_CARD_STYLES.pattern,
           patternKey: analysis.pattern ?? undefined,
@@ -179,7 +210,7 @@ const buildAnalysisCards = (
       : null,
     {
       key: "balanced",
-      title: "A more balanced way to see this",
+      title: "A steadier way to hold this",
       value: analysis.balancedThought ?? "",
       style: INSIGHT_CARD_STYLES.balanced,
       question: analysis.reflectionQuestion?.trim() || undefined,
@@ -200,8 +231,6 @@ function InsightCard({ title, value, style, patternKey, question }: InsightCardP
   const display = patternKey
     ? PATTERN_DISPLAY[patternKey.toLowerCase()]
     : null;
-  // Use dynamic thread-aware question when available, fall back to static pattern question
-  const sitWithQuestion = question || display?.question;
 
   return (
     <div
@@ -219,7 +248,7 @@ function InsightCard({ title, value, style, patternKey, question }: InsightCardP
             className="text-xs font-semibold tracking-wide mb-1"
             style={{ color: style.dot, opacity: 0.75 }}
           >
-            A thinking pattern
+            A clearer view
           </p>
           <p
             className="text-base font-semibold mb-3 leading-snug"
@@ -242,7 +271,7 @@ function InsightCard({ title, value, style, patternKey, question }: InsightCardP
             {title}
           </p>
           <p className="text-base leading-relaxed text-foreground">
-            {title === "How this made me feel"
+            {title === "How it feels right now"
               ? `This thought left you feeling ${toEmotionAdjective(value)}.`
               : value}
           </p>
@@ -523,6 +552,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
   } | null>(null);
   const [isAnalyzingFollowUp, setIsAnalyzingFollowUp] = useState(false);
   const [insightUnlocked, setInsightUnlocked] = useState(false);
+  const [responseMode, setResponseMode] = useState<ResponseMode>("short");
   const visitorIdRef = useRef("");
   const sessionIdRef = useRef("");
   const threadIdRef = useRef("");
@@ -554,9 +584,10 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
       analysis
         ? buildAnalysisCards(analysis, {
             includeSituation: thoughtHistory.length <= 1,
+            mode: responseMode,
           })
         : [],
-    [analysis, thoughtHistory.length],
+    [analysis, thoughtHistory.length, responseMode],
   );
   const latestVisibleCards = useMemo(
     () => latestAnalysisCards.filter((card) => card.value.trim()),
@@ -609,6 +640,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
     setSituationAmbiguity(null);
     setIsAnalyzingFollowUp(false);
     setInsightUnlocked(false);
+    setResponseMode("short");
   };
 
   // User signals their next thought is about a different situation entirely.
@@ -811,6 +843,8 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
           : [],
         thought: typeof payload.thought === "string" ? payload.thought : null,
       };
+      const mode = selectResponseMode(message, thoughtHistory.length);
+      setResponseMode(mode);
 
       setAnalysis(typedResult);
       setPass((prev) => Math.min(prev + 1, 4));
@@ -821,6 +855,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         {
           thought: message,
           analysis: typedResult,
+          mode,
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -838,6 +873,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
   const renderTimelineEntry = (entry: ThoughtHistoryEntry, index: number) => {
     const cards = buildAnalysisCards(entry.analysis, {
       includeSituation: thoughtHistory.length <= 1,
+      mode: entry.mode,
     });
     const visibleCards = cards.filter((card) => card.value.trim());
 
@@ -927,7 +963,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
               className="flex-1 text-sm leading-relaxed pt-0.5"
               style={{ color: "oklch(0.42 0.025 248)" }}
             >
-              Let&apos;s slow this down and look at it together.
+              Let&apos;s walk through this one step at a time.
             </p>
           </motion.div>
         )}
@@ -1187,7 +1223,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   ))}
                   {guidanceMessage && (
                     <p className="mt-2 text-xs font-semibold" style={{ color: "oklch(0.38 0.10 152)" }}>
-                      ↑ Type your answer above, then continue
+                      ↑ You can add or edit your answer, then continue
                     </p>
                   )}
                 </div>

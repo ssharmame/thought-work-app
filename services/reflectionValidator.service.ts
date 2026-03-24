@@ -25,8 +25,9 @@ export type FactStoryStage = {
 
 export type RecognitionStage = {
   stage: "recognition"
-  prompt: string
-  suggestions: string[]
+  reflection: string
+  // Backwards compatibility while old payloads may still send prompt.
+  prompt?: string
 }
 
 export type PatternStage = {
@@ -67,10 +68,10 @@ function validateFactStory(stage: FactStoryStage) {
 }
 
 function validateRecognition(stage: RecognitionStage) {
-  if (!stage.prompt) return false
-  if (!stage.prompt.trim().endsWith("?")) return false
-  if (!Array.isArray(stage.suggestions)) return false
-  return stage.suggestions.length > 0
+  if (!stage.reflection) return false
+  const reflection = stage.reflection.trim()
+  if (reflection.length < 8) return false
+  return true
 }
 
 function validatePattern(stage: PatternStage) {
@@ -99,14 +100,73 @@ export const fallbackFactStoryStage: FactStoryStage = {
 
 export const fallbackRecognitionStage: RecognitionStage = {
   stage: "recognition",
-  prompt:
-    "What do you actually know for certain right now?",
-  suggestions: [
-    "Maybe I'm assuming the worst",
-    "I'm probably overthinking this",
-    "I'm worried something went wrong",
-    "I'm not sure what it means yet",
-  ],
+  reflection: "What do you know for certain right now?",
+}
+
+function ensureQuestion(prompt: string) {
+  const trimmed = prompt.trim()
+  if (!trimmed) return "What do you know for certain right now?"
+  const lastChar = trimmed[trimmed.length - 1]
+  if (lastChar === "?" || lastChar === "." || lastChar === "!") {
+    return lastChar === "?" ? trimmed : `${trimmed.slice(0, -1)}?`
+  }
+  return `${trimmed}?`
+}
+
+function normalizePromptForMatch(prompt: string) {
+  return prompt
+    .toLowerCase()
+    .replace(/[?!.\s]+/g, " ")
+    .trim()
+}
+
+function isGenericRecognitionPrompt(prompt: string) {
+  const normalized = normalizePromptForMatch(prompt)
+  return (
+    normalized === "what do you actually know for certain right now" ||
+    normalized === "what do you know for certain right now" ||
+    normalized.startsWith("what do you actually know for certain right now ") ||
+    normalized.startsWith("what do you know for certain right now ")
+  )
+}
+
+function contextualRecognitionPrompt(context: RecognitionContext) {
+  const story = context.story?.trim()
+  if (!story) return fallbackRecognitionStage.reflection
+  return `When your mind says "${story}", what fact can you stand on right now?`
+}
+
+function normalizeRecognition(
+  stage: RecognitionStage & { suggestions?: string[] },
+  context: RecognitionContext
+): RecognitionStage {
+  const rawPrompt =
+    typeof stage.reflection === "string"
+      ? stage.reflection
+      : typeof stage.prompt === "string"
+        ? stage.prompt
+        : ""
+  const isGenericPrompt = isGenericRecognitionPrompt(rawPrompt)
+  const promptBase = isGenericPrompt
+    ? contextualRecognitionPrompt(context)
+    : rawPrompt
+
+  return {
+    stage: "recognition",
+    reflection: ensureQuestion(promptBase),
+  }
+}
+
+function buildRecognitionFallback(context: RecognitionContext): RecognitionStage {
+  const story = context.story?.trim()
+  const contextualPrompt = story
+    ? `When your mind says "${story}", what do you know for certain right now?`
+    : fallbackRecognitionStage.reflection
+
+  return {
+    stage: "recognition",
+    reflection: ensureQuestion(contextualPrompt),
+  }
 }
 
 export const fallbackPatternStage: PatternStage = {
@@ -164,21 +224,23 @@ export async function validateRecognitionStage(
   initial: RecognitionStage,
   context: RecognitionContext
 ): Promise<RecognitionStage> {
-  if (validateRecognition(initial)) {
-    return initial
+  const normalizedInitial = normalizeRecognition(initial, context)
+  if (validateRecognition(normalizedInitial)) {
+    return normalizedInitial
   }
 
   console.log("recognition validation failed, retrying")
 
   const retry = await generateRecognitionStage(context)
+  const normalizedRetry = normalizeRecognition(retry, context)
 
-  if (validateRecognition(retry)) {
-    return retry
+  if (validateRecognition(normalizedRetry)) {
+    return normalizedRetry
   }
 
   console.log("recognition retry failed, returning fallback")
 
-  return { ...fallbackRecognitionStage }
+  return buildRecognitionFallback(context)
 }
 
 export async function validatePatternStage(
