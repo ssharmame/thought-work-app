@@ -3,6 +3,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { Card } from "@/components/ui/card"
+import { BrandLogo } from "@/components/brand-logo"
 
 interface HistoryPageProps {
   searchParams: Promise<{ page?: string }>
@@ -126,14 +127,12 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       }}
     >
       {/* Nav */}
-      <header className="sticky top-0 z-50 backdrop-blur-md border-b border-border" style={{ background: "oklch(0.977 0.008 88 / 0.92)" }}>
+      <header className="sticky top-0 z-50 border-b border-border/55 backdrop-blur-md" style={{ background: "oklch(0.982 0.007 88 / 0.9)" }}>
         <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/tool" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             ← Tool
           </Link>
-          <span className="font-display text-xl font-semibold text-foreground tracking-tight">
-            ThoughtLens
-          </span>
+          <BrandLogo size="sm" />
           <Link
             href="/tool"
             className="text-sm font-medium px-4 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity"
@@ -145,30 +144,30 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
 
       <main className="max-w-6xl mx-auto px-5 py-8 md:px-6 md:py-10 space-y-6">
         <Card
-          className="rounded-[28px] border border-border/80 px-6 py-6 md:px-8 md:py-8"
+          className="rounded-[28px] border border-border/55 px-6 py-6 md:px-8 md:py-8"
           style={{
             background:
-              "linear-gradient(145deg, oklch(0.995 0.004 88 / 0.98) 0%, oklch(0.965 0.02 150 / 0.72) 100%)",
-            boxShadow: "0 22px 60px oklch(0.22 0.018 248 / 0.08)",
+              "linear-gradient(145deg, oklch(0.996 0.004 88 / 0.98) 0%, oklch(0.968 0.018 150 / 0.7) 100%)",
+            boxShadow: "0 22px 60px oklch(0.22 0.018 248 / 0.06), inset 0 1px 0 oklch(1 0 0 / 0.58)",
           }}
         >
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_360px] lg:items-start">
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="rounded-full border border-border bg-background px-3 py-1">
+                <span className="rounded-full border border-border/60 bg-background/82 px-3 py-1 text-xs font-medium uppercase tracking-[0.15em]">
                   Reflection archive
                 </span>
-                <span className="rounded-full border border-border bg-background px-3 py-1">
+                <span className="rounded-full border border-border/60 bg-background/82 px-3 py-1 text-xs font-medium uppercase tracking-[0.15em]">
                   {totalThreads} thread{totalThreads !== 1 ? "s" : ""}
                 </span>
                 {latestReflection && (
-                  <span className="rounded-full border border-border bg-background px-3 py-1">
+                  <span className="rounded-full border border-border/60 bg-background/82 px-3 py-1 text-xs font-medium uppercase tracking-[0.15em]">
                     Last reflection {formatRelative(latestReflection)}
                   </span>
                 )}
               </div>
               <div>
-                <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
+                <h1 className="font-display text-4xl font-medium tracking-[-0.02em] text-foreground md:text-5xl">
                   Your reflections
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -196,7 +195,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
 
         {/* Thread list */}
         {visibleThreads.length === 0 ? (
-          <Card className="rounded-[24px] px-6 py-16 text-center">
+          <Card className="rounded-[24px] border border-border/55 bg-[oklch(0.993_0.004_88_/_0.82)] px-6 py-16 text-center">
             <p className="text-muted-foreground text-sm mb-2">No reflections yet</p>
             <p className="text-muted-foreground/60 text-xs mb-6 max-w-xs mx-auto">
               Your thoughts and patterns will appear here after your first session.
@@ -210,15 +209,15 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           </Card>
         ) : (
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_320px]">
-            <Card className="rounded-[24px] border border-border/80 px-5 py-5 md:px-6 md:py-6">
+            <Card className="rounded-[24px] border border-border/55 bg-[oklch(0.993_0.004_88_/_0.82)] px-5 py-5 md:px-6 md:py-6">
               <div className="mb-5">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Sessions</p>
-                <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground/80">Sessions</p>
+                <h2 className="mt-2 font-display text-2xl font-medium tracking-[-0.015em] text-foreground">
                   Reflection threads
                 </h2>
               </div>
-              <div className="mb-5 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Last 7 days</p>
+              <div className="mb-5 rounded-2xl border border-border/55 bg-background/82 px-4 py-4">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">Last 7 days</p>
                 <div className="mt-3 space-y-2 text-sm leading-6 text-foreground">
                   <p>
                     <span className="text-muted-foreground">Repeated pattern:</span>{" "}
@@ -256,24 +255,24 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                     {page > 1 ? (
                       <Link
                         href={`/history?page=${page - 1}`}
-                        className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/20"
+                        className="rounded-full border border-border/60 bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/20"
                       >
                         Previous
                       </Link>
                     ) : (
-                      <span className="rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground/50">
+                      <span className="rounded-full border border-border/60 bg-background px-4 py-2 text-sm text-muted-foreground/50">
                         Previous
                       </span>
                     )}
                     {page * pageSize < totalThreads ? (
                       <Link
                         href={`/history?page=${page + 1}`}
-                        className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/20"
+                        className="rounded-full border border-border/60 bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/20"
                       >
                         Next
                       </Link>
                     ) : (
-                      <span className="rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground/50">
+                      <span className="rounded-full border border-border/60 bg-background px-4 py-2 text-sm text-muted-foreground/50">
                         Next
                       </span>
                     )}
@@ -284,9 +283,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
 
             <div className="space-y-6">
               {topPattern && totalReflections >= 3 && (
-                <Card className="rounded-[24px] border border-border/80 px-5 py-5 md:px-6 md:py-6">
-                  <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Most common pattern</p>
-                  <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground">
+                <Card className="rounded-[24px] border border-border/55 bg-[oklch(0.993_0.004_88_/_0.82)] px-5 py-5 md:px-6 md:py-6">
+                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">Most common pattern</p>
+                  <h2 className="mt-2 font-display text-2xl font-medium tracking-[-0.015em] text-foreground">
                     {formatPattern(topPattern[0])}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -348,11 +347,11 @@ function ThreadCard({
   const uniqueThoughts = dedupeExactThoughts(thread.thoughts)
 
   return (
-    <details className="group overflow-hidden rounded-[22px] border border-border bg-card/90">
+    <details className="group overflow-hidden rounded-[22px] border border-border/55 bg-[oklch(0.993_0.004_88_/_0.84)]">
       <summary className="flex items-start justify-between px-5 py-4 cursor-pointer list-none hover:bg-secondary/20 transition-colors">
         <div className="flex-1 min-w-0 pr-4">
           {highlighted && (
-            <span className="mb-2 inline-flex rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[11px] font-medium text-secondary-foreground">
+            <span className="mb-2 inline-flex rounded-full border border-border/60 bg-secondary/35 px-2.5 py-1 text-xs font-medium uppercase tracking-[0.14em] text-secondary-foreground">
               Most relevant for next session
             </span>
           )}
@@ -417,7 +416,7 @@ function ThreadCard({
       </summary>
 
       {/* Expanded: reflections */}
-      <div className="border-t border-border divide-y divide-border">
+      <div className="divide-y divide-border/55 border-t border-border/55">
         {uniqueThoughts.map((thought) => (
           <ReflectionRow key={thought.id} thought={thought} />
         ))}
@@ -497,9 +496,9 @@ function HistoryStatCard({
   compact?: boolean
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/90 px-4 py-4">
-      <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
-      <p className={`mt-3 text-foreground ${compact ? "text-sm font-medium leading-6" : "text-4xl font-semibold tracking-tight"}`}>
+    <div className="rounded-2xl border border-border/55 bg-background/84 px-4 py-4 shadow-[inset_0_1px_0_oklch(1_0_0_/_0.5)]">
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80/90">{label}</p>
+      <p className={`mt-3 font-display text-foreground ${compact ? "text-sm font-medium leading-6 tracking-[-0.02em]" : "text-4xl font-medium tracking-[-0.02em]"}`}>
         {value}
       </p>
     </div>

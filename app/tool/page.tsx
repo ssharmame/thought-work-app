@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { BrandLogo } from "@/components/brand-logo";
 
 
 // Safety-net: convert noun-form emotions to adjective form in case AI returns the wrong form
@@ -600,11 +601,25 @@ function FadeUp({
 
 function UserMenu({ email, role }: { email: string; role: string | null }) {
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // Stores the computed fixed position for the dropdown
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 68, right: 16 });
 
   const handleSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/auth/login";
+  };
+
+  const toggleOpen = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setPos({
+        top: rect.bottom + 8,                          // 8px gap below the button
+        right: window.innerWidth - rect.right,         // align right edge with button's right edge
+      });
+    }
+    setOpen((v) => !v);
   };
 
   // First letter of email as avatar
@@ -613,8 +628,9 @@ function UserMenu({ email, role }: { email: string; role: string | null }) {
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         className="w-8 h-8 rounded-full bg-foreground/10 border border-border flex items-center justify-center text-sm font-medium text-foreground hover:bg-foreground/15 transition-colors"
         title={email}
       >
@@ -623,20 +639,35 @@ function UserMenu({ email, role }: { email: string; role: string | null }) {
 
       {open && (
         <>
-          {/* Backdrop */}
+          {/* Full-page transparent backdrop — dismisses the menu */}
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0"
+            style={{ zIndex: 9998 }}
             onClick={() => setOpen(false)}
           />
-          {/* Dropdown */}
-          <div className="absolute right-0 top-10 z-50 w-52 rounded-xl bg-background border border-border shadow-lg py-1 text-sm">
-            <div className="px-4 py-2.5 border-b border-border">
+          {/*
+           * fixed + measured position means the dropdown right-aligns
+           * exactly with the avatar button, regardless of viewport width.
+           * Fully opaque background — no bleed-through from heading text.
+           */}
+          <div
+            className="fixed w-56 overflow-hidden rounded-2xl border border-border/60 py-1 text-sm"
+            style={{
+              top: pos.top,
+              right: pos.right,
+              zIndex: 9999,
+              background: "oklch(0.993 0.004 88)",
+              boxShadow:
+                "0 8px 32px oklch(0.22 0.018 248 / 0.14), 0 2px 8px oklch(0.22 0.018 248 / 0.08), inset 0 1px 0 oklch(1 0 0 / 0.7)",
+            }}
+          >
+            <div className="border-b border-border/60 px-4 py-3">
               <p className="text-xs text-muted-foreground truncate">{email}</p>
             </div>
             {role === "PRACTITIONER" ? (
               <a
                 href="/dashboard"
-                className="flex items-center px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
+                className="flex items-center px-4 py-3 text-sm text-foreground transition-colors hover:bg-muted/60"
                 onClick={() => setOpen(false)}
               >
                 Dashboard
@@ -644,7 +675,7 @@ function UserMenu({ email, role }: { email: string; role: string | null }) {
             ) : (
               <a
                 href="/history"
-                className="flex items-center px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
+                className="flex items-center px-4 py-3 text-sm text-foreground transition-colors hover:bg-muted/60"
                 onClick={() => setOpen(false)}
               >
                 My reflections
@@ -653,7 +684,7 @@ function UserMenu({ email, role }: { email: string; role: string | null }) {
             <button
               type="button"
               onClick={handleSignOut}
-              className="w-full text-left flex items-center px-4 py-2.5 text-foreground hover:bg-muted transition-colors"
+              className="flex w-full items-center px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-muted/60"
             >
               Sign out
             </button>
@@ -1015,15 +1046,18 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
           : [],
         thought: typeof payload.thought === "string" ? payload.thought : null,
       };
-      const mode = selectResponseMode(message, thoughtHistory.length);
+      // THOUGHT-WITHIN-THOUGHT DISABLED: each reflection is a fresh standalone entry.
+      // selectResponseMode used to escalate to "deep" after 3 passes; now always "short"/"medium".
+      const mode = selectResponseMode(message, 0 /* historyLength fixed at 0 — no threading */);
       setResponseMode(mode);
 
       setAnalysis(typedResult);
-      setPass((prev) => Math.min(prev + 1, 4));
+      // setPass((prev) => Math.min(prev + 1, 4)); // DISABLED: pass counter not used in standalone mode
       setRevealGroup(1);
       setBalancedRevealed(false);
-      setThoughtHistory((prev) => [
-        ...prev,
+      // DISABLED: was [...prev, entry] — accumulates thread history. Now replaced with a
+      // single-entry array so the timeline/insight-unlock UI never activates.
+      setThoughtHistory([
         {
           thought: message,
           analysis: typedResult,
@@ -1162,46 +1196,12 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
             ? 0.6 + indexInGroup * 0.18
             : 0.05 + indexInGroup * 0.18
 
-          // Balanced card — keep existing user-gated behaviour
+          // Balanced card — shown directly, no consent gate needed
           if (isBalanced) {
+            if (cardGroup > revealGroup) return null
+            // Auto-mark balancedRevealed so the clarity choice appears after this card
             if (!balancedRevealed) {
-              // Only show balanced gate when group 3 is revealed
-              if (revealGroup < 3) return null
-              return (
-                <motion.div
-                  key={`balanced-gate-${index}`}
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: cardDelay, ease: "easeOut" }}
-                  className="flex items-start gap-4 mb-8"
-                >
-                  <div className="mt-2 flex-shrink-0">
-                    <span
-                      className="block h-3 w-3 rounded-full"
-                      style={{ background: "oklch(0.46 0.12 152 / 0.4)" }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setBalancedRevealed(true)}
-                    className="flex-1 rounded-2xl p-5 text-left transition-all"
-                    style={{
-                      background: "oklch(0.92 0.05 152 / 0.25)",
-                      border: "1px dashed oklch(0.46 0.12 152 / 0.4)",
-                    }}
-                  >
-                    <p
-                      className="text-sm font-semibold"
-                      style={{ color: "oklch(0.42 0.11 152)" }}
-                    >
-                      Ready to see a more balanced perspective? →
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Tap when you feel ready.
-                    </p>
-                  </button>
-                </motion.div>
-              )
+              setTimeout(() => setBalancedRevealed(true), 0)
             }
             return (
               <motion.div
@@ -1320,26 +1320,28 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         className="sticky top-0 z-50 backdrop-blur-md border-b border-border"
         style={{ background: "oklch(0.977 0.008 88 / 0.92)" }}
       >
-        <nav className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
-          ) : (
-            <div className="w-20" />
-          )}
-          <span className="font-display text-xl font-semibold text-foreground tracking-tight">
-            Thoughtlensai
-          </span>
-          <div className="flex items-center gap-3 justify-end">
+        <nav className="mx-auto grid h-16 max-w-3xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 sm:px-6">
+          <div className="flex min-w-0 items-center">
+            {onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
+                className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back
+              </button>
+            ) : (
+              <div className="w-16 sm:w-20" />
+            )}
+          </div>
+
+          <BrandLogo size="sm" />
+
+          <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-3">
             {userEmail && userRole === "PRACTITIONER" && (
               <a
                 href="/dashboard"
-                className="text-sm font-medium px-4 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity"
+                className="rounded-lg bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90 sm:px-4"
               >
                 Dashboard
               </a>
@@ -1361,10 +1363,10 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
       <main className="max-w-3xl mx-auto px-5 pt-8 pb-4 md:px-6 md:py-16 flex flex-col gap-8 md:gap-12">
         <FadeUp>
           <header className="text-center space-y-2 md:space-y-3">
-            <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-semibold text-foreground text-balance leading-tight">
+            <h1 className="font-display text-[1.75rem] sm:text-[2.2rem] md:text-[2.9rem] font-medium leading-[1.12] tracking-[-0.018em] text-foreground text-balance">
               What happened since your last session?
             </h1>
-            <p className="text-sm sm:text-base md:text-lg" style={{ color: "oklch(0.48 0.020 248)" }}>
+            <p className="mt-1 text-sm sm:text-base leading-[1.7]" style={{ color: "oklch(0.52 0.018 248)" }}>
               Capture a moment your mind got stuck.
             </p>
           </header>
@@ -1548,12 +1550,13 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
 
         {thoughtHistory.length > 0 && !loading && (
           <section className="space-y-10">
+            {/* DISABLED: ThoughtTimeline — only shown when threading multiple passes.
             {thoughtHistory.length > 1 && (
               <ThoughtTimeline
                 situation={situationForTimeline}
                 thoughts={orderedThoughtsForTimeline}
               />
-            )}
+            )} */}
             <div className="relative pl-8">
               <div
                 className="absolute left-3 top-0 bottom-0 w-px"
@@ -1588,96 +1591,63 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                 return renderTimelineEntry(entry, idx);
               })}
 
-              {/* Thread progress signal + clarity choice — appear after balanced card is revealed */}
+              {/* Completion card — appears directly after balanced cards are revealed */}
               {analysis && balancedRevealed && !loading && (
                 <>
-                  {/* Progress signal — honest location info, no judgment */}
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 14 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.35, delay: 0.1 }}
-                    className="flex items-start gap-4 mb-6"
+                    transition={{ duration: 0.4, delay: 0.2 }}
+                    className="flex items-start gap-4 mb-8"
                   >
                     <div className="mt-2 flex-shrink-0">
                       <span
-                        className="block h-2 w-2 rounded-full"
-                        style={{ background: "oklch(0.46 0.12 152 / 0.4)" }}
+                        className="block h-3 w-3 rounded-full"
+                        style={{ background: "oklch(0.46 0.12 152)" }}
                       />
                     </div>
-                    <p
-                      className="flex-1 text-sm leading-relaxed pt-0.5"
-                      style={{ color: "oklch(0.40 0.025 248)" }}
+                    <div
+                      className="flex-1 rounded-2xl p-6 space-y-4"
+                      style={{
+                        background:
+                          "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.025 150) 100%)",
+                        border: "1px solid oklch(0.88 0.025 150 / 0.5)",
+                        boxShadow: "0 8px 32px oklch(0.22 0.018 248 / 0.06)",
+                      }}
                     >
-                      {thoughtHistory.length === 1
-                        ? "You've explored one angle of this situation."
-                        : `You've now looked at this from ${thoughtHistory.length} angles.`}
-                    </p>
-                  </motion.div>
-
-                  {/* Clarity choice — user decides when the thread is complete */}
-                  {clarityChoice === null && !situationAmbiguity && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 14 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.2 }}
-                      className="flex items-start gap-4 mb-8"
-                    >
-                      <div className="mt-2 flex-shrink-0">
-                        <span
-                          className="block h-3 w-3 rounded-full border-2"
-                          style={{
-                            borderColor: "oklch(0.48 0.08 310)",
-                            background: "oklch(0.977 0.008 88)",
-                          }}
-                        />
-                      </div>
-                      <div
-                        className="flex-1 rounded-2xl p-6 space-y-4"
+                      <p
+                        className="text-base font-semibold leading-relaxed"
+                        style={{ color: "oklch(0.22 0.018 248)" }}
+                      >
+                        You&apos;ve looked at this from a steadier place.
+                      </p>
+                      <p
+                        className="text-sm leading-relaxed"
+                        style={{ color: "oklch(0.40 0.025 248)" }}
+                      >
+                        When you&apos;re ready, bring another situation to reflect on.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => startNewThoughtThread()}
+                        className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
                         style={{
-                          background:
-                            "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.962 0.025 310) 100%)",
-                          border: "1px solid oklch(0.86 0.035 310 / 0.55)",
-                          boxShadow: "0 8px 32px oklch(0.22 0.018 248 / 0.07)",
+                          background: "oklch(0.92 0.05 152 / 0.4)",
+                          border: "1px solid oklch(0.46 0.12 152 / 0.35)",
+                          color: "oklch(0.32 0.09 152)",
                         }}
                       >
-                        <p
-                          className="text-base font-semibold leading-snug"
-                          style={{ color: "oklch(0.22 0.018 248)" }}
-                        >
-                          What feels true for you right now?
-                        </p>
-                        <div className="flex flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setClarityChoice("yes")}
-                            className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
-                            style={{
-                              background: "oklch(0.92 0.05 152 / 0.4)",
-                              border: "1px solid oklch(0.46 0.12 152 / 0.35)",
-                              color: "oklch(0.32 0.09 152)",
-                            }}
-                          >
-                            This helped me see things differently
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setClarityChoice("not-yet")}
-                            className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
-                            style={{
-                              background: "oklch(0.96 0.012 310 / 0.4)",
-                              border: "1px solid oklch(0.84 0.03 310 / 0.4)",
-                              color: "oklch(0.39 0.09 310)",
-                            }}
-                          >
-                            There&apos;s more here to explore
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
+                        Reflect on something else →
+                      </button>
+                    </div>
+                  </motion.div>
 
-                  {/* Completion — user says they have clarity */}
-                  {clarityChoice === "yes" && (
+                  {/* DISABLED (threading): clarityChoice question + "not-yet" continuation path.
+                  Re-enable together with thought-within-thought flow.
+                  {clarityChoice === null && ...}
+                  {clarityChoice === "yes" && ...}
+                  Preserved dead code below — kept for reference only: */}
+                  {false && clarityChoice === "yes" && (
                     <motion.div
                       initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1685,45 +1655,15 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                       className="flex items-start gap-4 mb-8"
                     >
                       <div className="mt-2 flex-shrink-0">
-                        <span
-                          className="block h-3 w-3 rounded-full"
-                          style={{ background: "oklch(0.46 0.12 152)" }}
-                        />
+                        <span className="block h-3 w-3 rounded-full" style={{ background: "oklch(0.46 0.12 152)" }} />
                       </div>
-                      <div
-                        className="flex-1 rounded-2xl p-6 space-y-4"
-                        style={{
-                          background:
-                            "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.025 150) 100%)",
-                          border: "1px solid oklch(0.88 0.025 150 / 0.5)",
-                          boxShadow: "0 8px 32px oklch(0.22 0.018 248 / 0.06)",
-                        }}
-                      >
-                        <p
-                          className="text-base font-semibold leading-relaxed"
-                          style={{ color: "oklch(0.22 0.018 248)" }}
-                        >
-                          You&apos;ve found one way to hold this with a little more steadiness.
-                        </p>
-                        <p
-                          className="text-sm leading-relaxed"
-                          style={{ color: "oklch(0.40 0.025 248)" }}
-                        >
-                          You can pause here, or keep going if something still feels unfinished.
-                        </p>
-                        <div className="flex flex-col gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => startNewThoughtThread()}
-                            className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
-                            style={{
-                              background: "oklch(0.92 0.05 152 / 0.4)",
-                              border: "1px solid oklch(0.46 0.12 152 / 0.35)",
-                              color: "oklch(0.32 0.09 152)",
-                            }}
-                          >
-                            Explore a different situation →
-                          </button>
+                      <div className="flex-1 rounded-2xl p-6 space-y-4" style={{ background: "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.025 150) 100%)", border: "1px solid oklch(0.88 0.025 150 / 0.5)" }}>
+                        <p className="text-base font-semibold" style={{ color: "oklch(0.22 0.018 248)" }}>You&apos;ve found one way to hold this with a little more steadiness.</p>
+                        <button type="button" onClick={() => startNewThoughtThread()} className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all" style={{ background: "oklch(0.92 0.05 152 / 0.4)", border: "1px solid oklch(0.46 0.12 152 / 0.35)", color: "oklch(0.32 0.09 152)" }}>
+                          Explore a different situation →
+                        </button>
+                        {/* DISABLED: "There's still something here I want to explore →"
+                          — continued the same thread. Standalone mode only.
                           <button
                             type="button"
                             onClick={() => setClarityChoice("not-yet")}
@@ -1736,7 +1676,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                           >
                             There&apos;s still something here I want to explore →
                           </button>
-                        </div>
+                          */}
                       </div>
                     </motion.div>
                   )}
@@ -1745,56 +1685,18 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
               )}
 
 
-              {/* Insight unlock — available after 2 passes, user-initiated */}
+              {/* DISABLED: Insight unlock — appeared after 2+ passes to surface cross-entry patterns.
+              Standalone mode has at most 1 entry per session, so this never fires.
+              Will be replaced in a future step with a cross-entry AI insight panel on the dashboard.
               {analysis && thoughtHistory.length >= 2 && balancedRevealed && !loading && (
                 <>
-                  {!insightUnlocked ? (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.35, delay: 0.15 }}
-                      className="flex items-start gap-4 mb-6"
-                    >
-                      <div className="mt-2 flex-shrink-0">
-                        <span
-                          className="block h-2 w-2 rounded-full"
-                          style={{ background: "oklch(0.52 0.14 260 / 0.5)" }}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setInsightUnlocked(true)}
-                        className="flex-1 text-left text-sm leading-relaxed pt-0.5 transition-opacity hover:opacity-70"
-                        style={{ color: "oklch(0.42 0.08 260)" }}
-                      >
-                        You&apos;ve explored this from {thoughtHistory.length} angles. See what your thinking reveals →
-                      </button>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      initial={{ opacity: 0, y: 14 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.45, ease: "easeOut" }}
-                      className="flex items-start gap-4 mb-6"
-                    >
-                      <div className="mt-2 flex-shrink-0">
-                        <span
-                          className="block h-3 w-3 rounded-full"
-                          style={{ background: "oklch(0.52 0.14 260)" }}
-                        />
-                      </div>
-                      <InsightSummary
-                        patternSummaryText={patternSummaryText}
-                        emotionSummaryText={emotionSummaryText}
-                        beliefDisplay={beliefDisplay}
-                        dominantPattern={dominantPattern}
-                        dominantEmotion={dominantEmotion}
-                      />
-                    </motion.div>
-                  )}
+                  ...InsightSummary / insightUnlocked UI...
                 </>
               )}
-              {!loading && clarityChoice === "not-yet" && (
+              */}
+              {/* DISABLED (standalone mode): clarityChoice "not-yet" follow-up form.
+                  Re-enable when threading is reintroduced. Gated with false && to preserve syntax. */}
+              {false && !loading && clarityChoice === "not-yet" && (
                 <div className="flex items-start gap-4">
                   <div className="mt-2">
                     <span
@@ -1818,7 +1720,6 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                     }}
                   >
                     {situationAmbiguity ? (
-                      /* ── Ambiguous state: thought shown, user picks same or different ── */
                       <div className="space-y-4">
                         <div
                           className="rounded-xl px-4 py-3"
@@ -1837,91 +1738,54 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                             className="text-sm leading-relaxed font-medium"
                             style={{ color: "oklch(0.22 0.018 248)" }}
                           >
-                            &ldquo;{situationAmbiguity.pendingThought}&rdquo;
+                            &ldquo;{situationAmbiguity!.pendingThought}&rdquo;
                           </p>
                         </div>
-                        <p
-                          className="text-base font-semibold leading-snug"
-                          style={{ color: "oklch(0.22 0.018 248)" }}
-                        >
+                        <p className="text-base font-semibold leading-snug" style={{ color: "oklch(0.22 0.018 248)" }}>
                           What you wrote feels like it might be about a different situation.
                         </p>
-                        <p
-                          className="text-sm"
-                          style={{ color: "oklch(0.40 0.025 248)" }}
-                        >
+                        <p className="text-sm" style={{ color: "oklch(0.40 0.025 248)" }}>
                           How does this feel to you?
                         </p>
                         <div className="flex flex-col gap-2">
                           <button
                             type="button"
                             onClick={() => {
-                              const pending = situationAmbiguity;
+                              const pending = situationAmbiguity!;
                               setSituationAmbiguity(null);
                               processThought(pending.pendingThought, true);
                             }}
                             className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
-                            style={{
-                              background: "oklch(0.92 0.05 152 / 0.4)",
-                              border: "1px solid oklch(0.46 0.12 152 / 0.35)",
-                              color: "oklch(0.32 0.09 152)",
-                            }}
+                            style={{ background: "oklch(0.92 0.05 152 / 0.4)", border: "1px solid oklch(0.46 0.12 152 / 0.35)", color: "oklch(0.32 0.09 152)" }}
                           >
                             It&apos;s still about the same thing →
                           </button>
                           <button
                             type="button"
                             onClick={() => {
-                              const pending = situationAmbiguity;
+                              const pending = situationAmbiguity!;
                               startNewThoughtThread({ threadId: pending.newThreadId });
                               processThought(pending.pendingThought, true, true);
                             }}
                             className="rounded-xl px-5 py-3 text-sm font-semibold text-left transition-all"
-                            style={{
-                              background: "oklch(0.96 0.012 310 / 0.4)",
-                              border: "1px solid oklch(0.84 0.03 310 / 0.4)",
-                              color: "oklch(0.39 0.09 310)",
-                            }}
+                            style={{ background: "oklch(0.96 0.012 310 / 0.4)", border: "1px solid oklch(0.84 0.03 310 / 0.4)", color: "oklch(0.39 0.09 310)" }}
                           >
                             This is something different →
                           </button>
                         </div>
                       </div>
                     ) : (
-                      /* ── Normal / analyzing state ── */
                       <>
                         <div>
-                          <p
-                            className="text-sm font-semibold tracking-wide mb-3"
-                            style={{ color: "oklch(0.39 0.09 310)" }}
-                          >
+                          <p className="text-sm font-semibold tracking-wide mb-3" style={{ color: "oklch(0.39 0.09 310)" }}>
                             What else is coming up?
                           </p>
-
-                          {/* Thread situation anchor */}
                           {analysis?.situation && (
-                            <div
-                              className="mb-4 rounded-xl px-4 py-3"
-                              style={{
-                                background: "oklch(0.96 0.012 310 / 0.5)",
-                                border: "1px solid oklch(0.84 0.03 310 / 0.5)",
-                              }}
-                            >
-                              <p
-                                className="text-xs font-semibold uppercase tracking-wider mb-1"
-                                style={{ color: "oklch(0.46 0.08 310)" }}
-                              >
-                                Still exploring
-                              </p>
-                              <p
-                                className="text-sm leading-relaxed"
-                                style={{ color: "oklch(0.30 0.06 310)" }}
-                              >
-                                &ldquo;{analysis.situation}&rdquo;
-                              </p>
+                            <div className="mb-4 rounded-xl px-4 py-3" style={{ background: "oklch(0.96 0.012 310 / 0.5)", border: "1px solid oklch(0.84 0.03 310 / 0.5)" }}>
+                              <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "oklch(0.46 0.08 310)" }}>Still exploring</p>
+                              <p className="text-sm leading-relaxed" style={{ color: "oklch(0.30 0.06 310)" }}>&ldquo;{analysis?.situation}&rdquo;</p>
                             </div>
                           )}
-
                           <textarea
                             data-ocid="thought_page.next_thought.textarea"
                             value={thought}
@@ -1933,22 +1797,11 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                             disabled={isAnalyzingFollowUp}
                             placeholder="What's coming up for you now…"
                             className="h-36 md:h-32 w-full rounded-xl p-4 text-base text-foreground placeholder:text-[oklch(0.70_0.012_248)] focus:outline-none focus:ring-2 resize-none disabled:opacity-60 disabled:cursor-not-allowed"
-                            style={{
-                              background: "oklch(1 0 0)",
-                              border: "1.5px solid oklch(0.82 0.03 310 / 0.7)",
-                            }}
+                            style={{ background: "oklch(1 0 0)", border: "1.5px solid oklch(0.82 0.03 310 / 0.7)" }}
                           />
                         </div>
-                        {/* Inline feedback */}
                         {(guidanceMessage || hint) && !isAnalyzingFollowUp && (
-                          <div
-                            className="rounded-xl p-4 text-sm"
-                            style={{
-                              background: "oklch(0.93 0.025 150 / 0.5)",
-                              border: "1px solid oklch(0.72 0.06 150 / 0.6)",
-                              color: "oklch(0.28 0.08 152)",
-                            }}
-                          >
+                          <div className="rounded-xl p-4 text-sm" style={{ background: "oklch(0.93 0.025 150 / 0.5)", border: "1px solid oklch(0.72 0.06 150 / 0.6)", color: "oklch(0.28 0.08 152)" }}>
                             {(guidanceMessage || hint || "").split("\n\n").map((para, i) => (
                               <p key={i} className={i > 0 ? "mt-2" : ""}>{para}</p>
                             ))}
@@ -1959,9 +1812,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                           onClick={() => processThought()}
                           disabled={isAnalyzingFollowUp || thought.trim().length < 6}
                           className="w-full rounded-full h-11 text-base font-semibold"
-                          style={{
-                            boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.18)",
-                          }}
+                          style={{ boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.18)" }}
                         >
                           {isAnalyzingFollowUp ? "Analyzing…" : "Go deeper"}
                         </Button>

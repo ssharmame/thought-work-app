@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Check, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
+import { BrandLogo } from "@/components/brand-logo";
 
 const DASHBOARD_SCREENSHOT_URL = "/therapistviewscreenshot.png";
 const FOUNDER_PHOTO_URL = "/sunil.png";
@@ -63,7 +64,7 @@ function FadeUp({
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+    <p className="mb-4 text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground/80">
       {children}
     </p>
   );
@@ -72,7 +73,7 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 function SectionDivider() {
   return (
     <div className="mx-auto max-w-6xl px-6">
-      <div className="border-t border-border/80" />
+      <div className="border-t border-border/55" />
     </div>
   );
 }
@@ -91,11 +92,11 @@ function SectionIntro({
   return (
     <FadeUp className={className}>
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 className="max-w-3xl text-balance font-display text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem] md:text-[3rem]">
+      <h2 className="max-w-3xl text-balance font-display text-[1.95rem] font-medium leading-[1.12] tracking-[-0.022em] text-foreground sm:text-[2.35rem] md:text-[2.9rem]">
         {title}
       </h2>
       {body ? (
-        <p className="mt-4 max-w-2xl text-[0.98rem] leading-7 text-muted-foreground md:text-lg md:leading-8">
+        <p className="mt-5 max-w-2xl text-[1rem] leading-[1.75] text-muted-foreground md:text-[1.06rem]">
           {body}
         </p>
       ) : null}
@@ -112,8 +113,11 @@ function SurfaceCard({
 }) {
   return (
     <div
-      className={`rounded-[24px] border border-border/80 bg-card/75 ${className}`}
-      style={{ boxShadow: "0 18px 50px oklch(0.22 0.018 248 / 0.06)" }}
+      className={`rounded-[24px] border border-border/55 bg-[oklch(0.993_0.004_88_/_0.82)] ${className}`}
+      style={{
+        boxShadow:
+          "0 22px 60px oklch(0.22 0.018 248 / 0.05), inset 0 1px 0 oklch(1 0 0 / 0.58)",
+      }}
     >
       {children}
     </div>
@@ -126,29 +130,11 @@ function Navbar() {
 
   return (
     <header
-      className="sticky top-0 z-50 border-b border-border/80 backdrop-blur-xl"
-      style={{ background: "oklch(0.977 0.008 88 / 0.84)" }}
+      className="sticky top-0 z-50 border-b border-border/55 backdrop-blur-xl"
+      style={{ background: "oklch(0.982 0.007 88 / 0.86)" }}
     >
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <span
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border/80 font-display text-xs font-semibold text-foreground sm:h-9 sm:w-9 sm:text-sm"
-            style={{
-              background:
-                "linear-gradient(145deg, oklch(0.985 0.01 88) 0%, oklch(0.94 0.03 150 / 0.9) 100%)",
-            }}
-          >
-            TL
-          </span>
-          <div className="min-w-0">
-            <p className="truncate font-display text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-              ThoughtLens
-            </p>
-            <p className="hidden text-[10px] uppercase tracking-[0.22em] text-muted-foreground sm:block">
-              Between-session clarity
-            </p>
-          </div>
-        </div>
+        <BrandLogo size="md" showTagline />
 
         <div className="hidden items-center gap-7 text-sm text-muted-foreground lg:flex">
           <button
@@ -223,13 +209,13 @@ function Hero() {
       <div className="relative mx-auto grid max-w-6xl gap-10 lg:grid-cols-[minmax(0,1.05fr)_420px] lg:items-start">
         <div className="pt-4 md:pt-8">
           <FadeUp>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/85 px-4 py-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground/80">
               For therapists and coaches
             </div>
           </FadeUp>
 
           <FadeUp delay={0.06}>
-            <h1 className="max-w-4xl text-balance font-display text-[2.85rem] font-semibold leading-[0.98] tracking-tight text-foreground sm:text-[3.65rem] md:text-[4.6rem]">
+            <h1 className="max-w-4xl text-balance font-display text-[2.6rem] font-medium leading-[1.06] tracking-[-0.022em] text-foreground sm:text-[3.4rem] md:text-[4.4rem]">
               See the pattern
               <br />
               before the session
@@ -238,7 +224,7 @@ function Hero() {
           </FadeUp>
 
           <FadeUp delay={0.12}>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8 md:text-xl">
+            <p className="mt-6 max-w-xl text-[1rem] leading-[1.78] text-muted-foreground md:text-[1.08rem]">
               ThoughtLens captures what your client notices between sessions,
               then turns it into a calm, structured starting point for the next
               conversation.
@@ -270,14 +256,14 @@ function Hero() {
           </FadeUp>
 
           <FadeUp delay={0.24}>
-            <div className="mt-8 flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
-              <span className="rounded-full border border-border/80 bg-background/75 px-3 py-1.5">
+            <div className="mt-8 flex flex-wrap items-center gap-2 text-xs text-muted-foreground/75">
+              <span className="rounded-full border border-border/50 bg-background/70 px-3 py-1.5 tracking-wide">
                 Not a journaling app
               </span>
-              <span className="rounded-full border border-border/80 bg-background/75 px-3 py-1.5">
+              <span className="rounded-full border border-border/50 bg-background/70 px-3 py-1.5 tracking-wide">
                 Not a therapy replacement
               </span>
-              <span className="rounded-full border border-border/80 bg-background/75 px-3 py-1.5">
+              <span className="rounded-full border border-border/50 bg-background/70 px-3 py-1.5 tracking-wide">
                 Built for session prep
               </span>
             </div>
@@ -293,40 +279,40 @@ function Hero() {
                   "linear-gradient(155deg, oklch(0.995 0.004 88 / 0.98) 0%, oklch(0.97 0.018 150 / 0.8) 100%)",
               }}
             >
-              <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground/80">
                 Why it feels different
               </p>
-              <p className="mt-2 font-display text-[1.55rem] font-semibold leading-tight tracking-tight text-foreground sm:text-[1.9rem]">
+              <p className="mt-2 font-display text-[1.35rem] font-medium leading-[1.25] tracking-[-0.015em] text-foreground sm:text-[1.6rem]">
                 Built for session preparation, not generic journaling.
               </p>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground sm:leading-7">
+              <p className="mt-3 text-sm leading-[1.72] text-muted-foreground">
                 The therapist sees a structured review centered on what changed,
                 what repeated, and where the next conversation could begin.
               </p>
 
               <div className="mt-6 grid gap-3">
                 <div className="rounded-[18px] border border-border/80 bg-background/78 p-4">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/75">
                     Session guide
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-foreground">
+                  <p className="mt-2 text-sm leading-[1.65] text-foreground">
                     A starting point, suggested opening, and the reason it matters.
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-[18px] border border-border/80 bg-background/78 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/75">
                       Client summary
                     </p>
-                    <p className="mt-2 text-sm leading-6 text-foreground">
+                    <p className="mt-2 text-sm leading-[1.65] text-foreground">
                       Dominant pattern, recent thoughts, and emotion summary from the last week.
                     </p>
                   </div>
                   <div className="rounded-[18px] border border-border/80 bg-background/78 p-4">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/75">
                       Belief layering
                     </p>
-                    <p className="mt-2 text-sm leading-6 text-foreground">
+                    <p className="mt-2 text-sm leading-[1.65] text-foreground">
                       A working hypothesis built from recurring reflections, with rationale and alternatives.
                     </p>
                   </div>
@@ -357,10 +343,10 @@ function InSession() {
           >
             <div className="flex flex-col gap-2 border-b border-border/80 bg-background/75 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground/80">
                   Actual practitioner dashboard
                 </p>
-                <p className="mt-1 text-sm leading-6 text-foreground">
+                <p className="mt-1 text-sm leading-[1.65] text-foreground">
                   Real product screenshot showing the pre-session review flow.
                 </p>
               </div>
@@ -369,14 +355,25 @@ function InSession() {
               </span>
             </div>
             {DASHBOARD_SCREENSHOT_URL ? (
-              <Image
-                src={DASHBOARD_SCREENSHOT_URL}
-                alt="ThoughtLens therapist dashboard showing client patterns, session opening, and recurring themes"
-                width={1400}
-                height={920}
-                className="h-auto w-full"
-                priority
-              />
+              <div className="relative overflow-hidden" style={{ maxHeight: "640px" }}>
+                <Image
+                  src={DASHBOARD_SCREENSHOT_URL}
+                  alt="ThoughtLens therapist dashboard showing client patterns, session opening, and recurring themes"
+                  width={1400}
+                  height={920}
+                  className="h-auto w-full"
+                  style={{ objectPosition: "top", objectFit: "cover" }}
+                  priority
+                />
+                {/* Soft fade at the bottom to indicate scroll-able content */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+                  style={{
+                    background: "linear-gradient(to bottom, transparent 0%, oklch(0.988 0.006 88 / 0.92) 100%)",
+                  }}
+                />
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
                 <p className="font-display text-2xl font-semibold text-foreground">
@@ -399,8 +396,8 @@ function InSession() {
               <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-full border border-border/80 bg-background text-xs font-semibold text-foreground">
                 0{index + 1}
               </div>
-              <p className="text-sm font-semibold text-foreground">{item.label}</p>
-              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+              <p className="text-sm font-medium text-foreground">{item.label}</p>
+              <p className="mt-2 text-sm leading-[1.72] text-muted-foreground">
                 {item.body}
               </p>
             </SurfaceCard>
@@ -438,10 +435,10 @@ function WhatGetsLost() {
         {items.map((item, index) => (
           <FadeUp key={item.heading} delay={index * 0.06}>
             <SurfaceCard className="h-full px-6 py-6">
-              <p className="font-display text-2xl font-semibold tracking-tight text-foreground">
+              <p className="font-display text-[1.2rem] font-medium leading-[1.35] tracking-[-0.012em] text-foreground">
                 {item.heading}
               </p>
-              <p className="mt-4 text-sm leading-7 text-muted-foreground">
+              <p className="mt-4 text-sm leading-[1.75] text-muted-foreground">
                 {item.body}
               </p>
             </SurfaceCard>
@@ -492,10 +489,10 @@ function HowItWorks() {
                 </span>
                 <div className="h-px flex-1 bg-border/70" />
               </div>
-              <p className="mt-5 font-display text-2xl font-semibold tracking-tight text-foreground">
+              <p className="mt-5 font-display text-[1.15rem] font-medium leading-[1.35] tracking-[-0.01em] text-foreground">
                 {step.title}
               </p>
-              <p className="mt-3 text-sm leading-7 text-muted-foreground">
+              <p className="mt-3 text-sm leading-[1.75] text-muted-foreground">
                 {step.body}
               </p>
             </SurfaceCard>
@@ -519,11 +516,11 @@ function WhatYouGet() {
   return (
     <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
       <div
-        className="rounded-[28px] border border-border/80 px-5 py-8 sm:px-6 md:rounded-[32px] md:px-10 md:py-12"
+        className="rounded-[28px] border border-border/55 px-5 py-8 sm:px-6 md:rounded-[32px] md:px-10 md:py-12"
         style={{
           background:
-            "linear-gradient(150deg, oklch(0.995 0.004 88 / 0.98) 0%, oklch(0.968 0.02 150 / 0.82) 100%)",
-          boxShadow: "0 24px 70px oklch(0.22 0.018 248 / 0.08)",
+            "linear-gradient(150deg, oklch(0.996 0.004 88 / 0.98) 0%, oklch(0.972 0.017 150 / 0.74) 100%)",
+          boxShadow: "0 24px 70px oklch(0.22 0.018 248 / 0.06), inset 0 1px 0 oklch(1 0 0 / 0.6)",
         }}
       >
         <SectionIntro
@@ -535,12 +532,12 @@ function WhatYouGet() {
         <div className="mt-10 grid gap-4 md:auto-rows-fr md:grid-cols-2">
           {items.map((item, index) => (
             <FadeUp key={item} delay={index * 0.04}>
-              <div className="flex h-full items-start gap-3 rounded-[18px] border border-border/80 bg-background/80 px-5 py-4">
+              <div className="flex h-full items-start gap-3 rounded-[18px] border border-border/55 bg-background/84 px-5 py-4">
                 <Check
                   className="mt-0.5 h-4 w-4 shrink-0"
                   style={{ color: "oklch(0.44 0.12 152)" }}
                 />
-                <p className="text-sm leading-7 text-foreground">{item}</p>
+                <p className="text-sm leading-[1.72] text-foreground">{item}</p>
               </div>
             </FadeUp>
           ))}
@@ -592,7 +589,7 @@ function ScopeAndLimits() {
         {columns.map((column, index) => (
           <FadeUp key={column.label} delay={index * 0.06}>
             <SurfaceCard className="h-full px-6 py-6">
-              <p className="text-[11px] uppercase tracking-[0.26em] text-muted-foreground">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground/80">
                 {column.label}
               </p>
               <ul className="mt-6 space-y-4">
@@ -602,7 +599,7 @@ function ScopeAndLimits() {
                       className="mt-2 h-2 w-2 shrink-0 rounded-full"
                       style={{ background: column.dot }}
                     />
-                    <span className="text-sm leading-7 text-foreground">{item}</span>
+                    <span className="text-sm leading-[1.72] text-foreground">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -635,13 +632,13 @@ function WhyIBuiltThis() {
             />
 
             <FadeUp delay={0.08}>
-              <blockquote className="mt-8 border-l border-border pl-6 text-base leading-8 text-foreground md:text-lg">
+              <blockquote className="mt-8 border-l-2 border-border/40 pl-6 font-display text-[1.15rem] leading-[1.7] tracking-[-0.01em] text-foreground/80 md:text-[1.28rem]">
                 <p>
                   Clients often arrive with the summary version of the week.
                   The repeated thought, the exact trigger, and the emotional tone
                   have already been compressed.
                 </p>
-                <p className="mt-5">
+                <p className="mt-6">
                   I wanted a way to preserve that texture without pretending the
                   software should interpret the work for the practitioner.
                 </p>
@@ -717,7 +714,7 @@ function Contact() {
 
         <FadeUp delay={0.08}>
           <SurfaceCard className="px-6 py-6">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground/80">
               Email
             </p>
             <a
@@ -740,20 +737,20 @@ function FinalCTA() {
   return (
     <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 md:py-28" id="cta">
       <div
-        className="rounded-[28px] border border-border/80 px-5 py-10 text-center sm:px-6 md:rounded-[32px] md:px-10 md:py-12"
+        className="rounded-[28px] border border-border/55 px-5 py-10 text-center sm:px-6 md:rounded-[32px] md:px-10 md:py-12"
         style={{
           background: [
             "radial-gradient(circle at top, oklch(0.92 0.04 150 / 0.2), transparent 36%)",
             "linear-gradient(180deg, oklch(0.99 0.005 88) 0%, oklch(0.975 0.01 88) 100%)",
           ].join(", "),
-          boxShadow: "0 26px 80px oklch(0.22 0.018 248 / 0.08)",
+          boxShadow: "0 26px 80px oklch(0.22 0.018 248 / 0.06), inset 0 1px 0 oklch(1 0 0 / 0.6)",
         }}
       >
         <FadeUp>
-          <h2 className="mx-auto max-w-3xl text-balance font-display text-[2.1rem] font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
+          <h2 className="mx-auto max-w-3xl text-balance font-display text-[1.95rem] font-medium leading-[1.15] tracking-[-0.018em] text-foreground sm:text-[2.4rem] md:text-[2.9rem]">
             Try it with a real client reflection and see how the session view feels.
           </h2>
-          <p className="mx-auto mt-5 max-w-xl text-base leading-8 text-muted-foreground md:text-lg">
+          <p className="mx-auto mt-5 max-w-xl text-base leading-[1.78] text-muted-foreground md:text-[1.06rem]">
             Walk through the product from the client reflection to the therapist
             dashboard, then decide whether it is worth bringing into your practice.
           </p>
@@ -788,10 +785,8 @@ function Footer() {
     <footer className="border-t border-border/80 px-4 py-10 sm:px-6">
       <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <span className="font-display text-lg font-semibold tracking-tight text-foreground">
-            ThoughtLens
-          </span>
-          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <BrandLogo size="sm" />
+          <p className="mt-2 text-xs uppercase tracking-[0.15em] text-muted-foreground/70">
             Between-session intelligence for therapists and coaches
           </p>
         </div>

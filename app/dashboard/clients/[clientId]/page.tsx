@@ -4,6 +4,7 @@ import type { CSSProperties } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { Card } from "@/components/ui/card"
+import { BrandLogo } from "@/components/brand-logo"
 
 const CHART_COLORS = [
   "oklch(0.58 0.11 150)",
@@ -231,9 +232,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
           <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             ← Dashboard
           </Link>
-          <span className="font-display text-xl font-semibold text-foreground tracking-tight">
-            ThoughtLens
-          </span>
+          <BrandLogo size="sm" />
           <div className="w-24" />
         </nav>
       </header>
@@ -262,7 +261,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
                 )}
               </div>
               <div>
-                <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
+                <h1 className="font-display text-4xl font-medium tracking-[-0.02em] text-foreground md:text-5xl">
                   {client.name ?? client.email ?? "Client"}
                 </h1>
                 {client.email && client.name && (
@@ -277,7 +276,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
                 <StatCard label="Threads" value={String(totalThreads)} />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                <span className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">
                   Time range
                 </span>
                 {RANGE_OPTIONS.map((option) => {
@@ -314,28 +313,28 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
         >
           {/* Opening line */}
           <div className="rounded-2xl border border-border bg-background/85 px-5 py-5">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">How you might open the session</p>
+            <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">How you might open the session</p>
             <p className="mt-3 text-sm leading-7 text-foreground italic">&ldquo;{sessionFocus.opening}&rdquo;</p>
           </div>
 
           {/* Why this matters */}
           <div className="mt-4 rounded-2xl border border-border bg-background/85 px-5 py-5">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Why this matters</p>
+            <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Why this matters</p>
             <p className="mt-3 text-sm leading-7 text-foreground">{sessionFocus.whyItMatters}</p>
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="rounded-2xl border border-border bg-background/85 px-5 py-5">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">What&rsquo;s been showing up</p>
+              <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">What&rsquo;s been showing up</p>
               <p className="mt-3 text-sm leading-7 text-foreground">{sessionFocus.summary}</p>
             </div>
             <div className="rounded-2xl border border-border bg-background/85 px-5 py-5">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Follow-up question</p>
+              <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Follow-up question</p>
               <p className="mt-3 text-sm leading-7 text-foreground">&ldquo;{sessionFocus.question}&rdquo;</p>
             </div>
           </div>
           <div className="mt-4 rounded-2xl border border-border bg-background/85 px-5 py-5">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">You might explore</p>
+            <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">You might explore</p>
             <ul className="mt-3 grid gap-2 text-sm leading-6 text-foreground md:grid-cols-2">
               {sessionFocus.explore.map((item) => (
                 <li key={item}>— {item}</li>
@@ -359,7 +358,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
                 </div>
                 {recentSample && (
                   <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
+                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">
                       Recent thought
                     </p>
                     <p className="mt-2 text-sm leading-6 text-foreground">&ldquo;{recentSample}&rdquo;</p>
@@ -367,7 +366,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
                 )}
                 {(emotionSummary.primary || emotionSummary.secondary.length > 0) && (
                   <div className="mt-4 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
+                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">
                       Emotion summary
                     </p>
                     {emotionSummary.primary && (
@@ -435,24 +434,24 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
               >
                 {/* 1. Belief */}
                 <div className="rounded-2xl border border-border bg-background/80 px-5 py-5">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground mb-2">What may be forming</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80 mb-2">What may be forming</p>
                   <p className="text-xl font-medium italic text-foreground">&ldquo;{structuredBelief.belief}&rdquo;</p>
                 </div>
 
                 {/* 2. Observed across + type + confidence */}
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Noticed across</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Noticed across</p>
                     <p className="mt-2 text-sm font-medium text-foreground">{structuredBelief.observedAcrossPatterns.pattern}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{structuredBelief.observedAcrossPatterns.count}× in reflections</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Belief type</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Belief type</p>
                     <p className="mt-2 text-sm font-medium text-foreground">{structuredBelief.beliefType}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">Not a core belief yet</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Confidence</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Confidence</p>
                     <p className="mt-2 text-sm font-medium text-foreground">{structuredBelief.confidence}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">Use as a starting point</p>
                   </div>
@@ -460,26 +459,26 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
 
                 {/* 3. Why this level */}
                 <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Why this confidence level</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Why this confidence level</p>
                   <p className="mt-2 text-sm leading-6 text-foreground">{structuredBelief.whyThisLevel}</p>
                 </div>
 
                 {/* 4. Reasoning */}
                 <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Reasoning</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Reasoning</p>
                   <p className="mt-2 text-sm leading-6 text-foreground">{structuredBelief.reasoning}</p>
                 </div>
 
                 {/* 5. Alternative */}
                 <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Alternative possibility</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Alternative possibility</p>
                   <p className="mt-2 text-sm leading-6 text-foreground">{structuredBelief.alternative}</p>
                 </div>
 
                 {/* 6. Example */}
                 {structuredBelief.example && (
                   <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Example from reflections</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Example from reflections</p>
                     <p className="mt-2 text-sm leading-6 text-foreground italic">&ldquo;{structuredBelief.example}&rdquo;</p>
                   </div>
                 )}
@@ -487,7 +486,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
                 {/* Deeper belief (only when strong evidence) */}
                 {shouldShowDeeperBelief && coreWound && (
                   <div className="mt-4 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">
                       {coreBeliefConfidence === "strong"
                         ? "Deeper belief — stronger signal"
                         : "Possible deeper belief (low confidence)"}
@@ -720,8 +719,8 @@ function InsightPanel({
       }}
     >
       <div className="mb-4">
-        <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">{eyebrow}</p>
-        <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
+        <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">{eyebrow}</p>
+        <h2 className="mt-2 font-display text-2xl font-medium tracking-[-0.015em] text-foreground">{title}</h2>
         {description && <p className="mt-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground/80">{description}</p>}
       </div>
       {children}
@@ -745,8 +744,8 @@ function DeepInsightSection({
   return (
     <details className="group rounded-[24px] border border-border/80 bg-card/90">
       <summary className="cursor-pointer list-none px-5 py-4 md:px-6">
-        <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">{eyebrow}</p>
-        <h3 className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground">{title}</h3>
+        <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">{eyebrow}</p>
+        <h3 className="mt-2 font-display text-xl font-medium tracking-[-0.012em] text-foreground">{title}</h3>
         {description && <p className="mt-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground/80">{description}</p>}
         <p className="mt-3 text-sm text-muted-foreground">{preview}</p>
       </summary>
@@ -772,7 +771,7 @@ function StatCard({
 }) {
   return (
     <div className="rounded-2xl border border-border bg-background/90 px-4 py-4">
-      <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">{label}</p>
       <p className={`mt-3 text-foreground ${compact ? "text-sm font-medium leading-6" : "text-4xl font-semibold tracking-tight"}`}>
         {value}
       </p>
@@ -838,7 +837,7 @@ function PairingCard({
         </span>
       </div>
       <div className="mt-4 flex flex-wrap items-start gap-3">
-        <span className="pt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Flow</span>
+        <span className="pt-1 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Flow</span>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <span className="max-w-full rounded-full border border-border bg-background px-2.5 py-1 text-xs leading-5 text-foreground break-words">
             {pattern}
@@ -891,7 +890,7 @@ function EvidenceList({
 
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">{label}</p>
       <ul className="mt-3 space-y-2 text-sm leading-6 text-foreground">
         {items.map((item) => (
           <li key={item}>- &ldquo;{item}&rdquo;</li>
@@ -954,7 +953,7 @@ function DonutChart({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         {centerValue && <span className="text-xl font-semibold tracking-tight text-foreground">{centerValue}</span>}
-        {centerLabel && <span className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">{centerLabel}</span>}
+        {centerLabel && <span className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">{centerLabel}</span>}
       </div>
     </div>
   )

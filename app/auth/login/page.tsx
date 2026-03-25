@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { sendMagicLink, signInWithGoogle } from "./actions"
+import { BrandLogo } from "@/components/brand-logo"
 
 interface LoginPageProps {
   searchParams: Promise<{ error?: string; invited?: string }>
@@ -30,25 +31,26 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl items-center">
         <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,1fr)_390px] lg:gap-12 lg:items-center">
           <section className="order-2 max-w-sm lg:order-1">
-            <div className="flex flex-wrap items-center gap-3">
+            {/* Logo */}
+            <Link href="/" className="inline-block">
+              <BrandLogo size="md" />
+            </Link>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link
                 href="/"
-                className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 <span aria-hidden>←</span>
                 Back to home
               </Link>
-
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                ThoughtLens access
-              </div>
             </div>
 
-            <h1 className="mt-5 max-w-[10ch] font-display text-[2rem] font-semibold leading-[0.98] tracking-tight text-foreground sm:text-[2.35rem] lg:text-[2.8rem]">
+            <h1 className="mt-5 max-w-[14ch] font-display text-[2.0rem] font-medium leading-[1.1] tracking-[-0.02em] text-foreground sm:text-[2.4rem] lg:text-[2.85rem]">
               Sign in to your ThoughtLens workspace.
             </h1>
 
-            <p className="mt-4 max-w-sm text-[0.98rem] leading-7 text-muted-foreground">
+            <p className="mt-4 max-w-sm text-[0.98rem] leading-[1.75] text-muted-foreground">
               {isInvite
                 ? "Your practitioner invited you to continue in ThoughtLens. Sign in to access your reflections and begin."
                 : "Use Google or a magic link to get back to your reflections, session summaries, and dashboard."}
@@ -65,23 +67,23 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </section>
 
           <section
-            className="order-1 w-full max-w-md justify-self-center rounded-[24px] border border-border/80 px-4 py-4 sm:px-5 sm:py-5 lg:order-2 lg:justify-self-end lg:rounded-[28px] lg:px-5 lg:py-6"
+            className="order-1 w-full max-w-md justify-self-center rounded-[24px] border border-border/55 px-4 py-4 sm:px-5 sm:py-5 lg:order-2 lg:justify-self-end lg:rounded-[28px] lg:px-5 lg:py-6"
             style={{
               background:
-                "linear-gradient(150deg, oklch(0.995 0.004 88 / 0.98) 0%, oklch(0.968 0.02 150 / 0.82) 100%)",
-              boxShadow: "0 24px 70px oklch(0.22 0.018 248 / 0.08)",
+                "linear-gradient(150deg, oklch(0.996 0.004 88 / 0.98) 0%, oklch(0.972 0.017 150 / 0.74) 100%)",
+              boxShadow: "0 24px 70px oklch(0.22 0.018 248 / 0.06), inset 0 1px 0 oklch(1 0 0 / 0.58)",
             }}
           >
-            <div className="rounded-[20px] border border-border/80 bg-background/82 px-4 py-4 sm:px-5 sm:py-5 lg:rounded-[22px] lg:px-6 lg:py-6">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+            <div className="rounded-[20px] border border-border/55 bg-background/84 px-4 py-4 sm:px-5 sm:py-5 lg:rounded-[22px] lg:px-6 lg:py-6">
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground/75">
                 Secure sign-in
               </p>
 
-              <h2 className="mt-3 font-display text-[1.75rem] font-semibold tracking-tight text-foreground sm:text-[2rem]">
+              <h2 className="mt-3 font-display text-[1.6rem] font-medium leading-[1.2] tracking-[-0.018em] text-foreground sm:text-[1.85rem]">
                 Welcome back
               </h2>
 
-              <p className="mt-2 text-sm leading-6 text-muted-foreground sm:leading-7">
+              <p className="mt-2 text-sm leading-[1.7] text-muted-foreground">
                 {isInvite
                   ? "Sign in to accept the invitation and continue."
                   : "Choose the simplest way to continue."}
@@ -91,7 +93,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 <form action={signInWithGoogle}>
                   <button
                     type="submit"
-                    className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-foreground px-4 py-3.5 text-sm font-semibold text-background transition-opacity hover:opacity-92"
+                    className="flex w-full items-center justify-center gap-3 rounded-xl border border-foreground/10 bg-foreground px-4 py-3.5 text-sm font-semibold text-background transition-opacity hover:opacity-92"
                   >
                     <GoogleIcon />
                     Continue with Google
@@ -118,12 +120,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                     autoComplete="email"
                     required
                     placeholder="you@example.com"
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/45 focus:outline-none focus:ring-1 focus:ring-foreground/15"
+                    className="w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/45 focus:outline-none focus:ring-1 focus:ring-foreground/15"
                   />
 
                   <button
                     type="submit"
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/30"
+                    className="w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/30"
                   >
                     Send magic link
                   </button>

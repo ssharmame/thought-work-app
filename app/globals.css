@@ -1,12 +1,37 @@
 @import "tailwindcss";
 
+/* ================================================ */
+/* DESIGN TOKENS                                     */
+/* ================================================ */
 
 @layer base {
   :root {
-    --font-sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
-    --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
 
-    /* Background */
+    /* ── Typography ──────────────────────────────── */
+    /*
+     * Fraunces is the ONLY typeface.
+     * --font-sans  → used by Tailwind's font-sans utility (body, UI)
+     * --font-display → semantic alias for headings / display text
+     * Both point to the same Fraunces variable font.
+     *
+     * We control warmth via CSS font-variation-settings:
+     *   SOFT 0–100  (0 = crisp, 100 = very round/friendly)
+     *   opsz 9–144  (optical size — match to px size)
+     */
+    --font-fraunces-stack: var(--font-fraunces), "Iowan Old Style",
+      "Palatino Linotype", "Book Antiqua", Georgia, serif;
+
+    --font-sans:    var(--font-fraunces-stack);
+    --font-display: var(--font-fraunces-stack);
+
+    /* ── Colour palette (oklch raw L C H values) ─── */
+    /*
+     * Values are stored as raw "L C H" triplets (no oklch() wrapper)
+     * so tailwind.config.js can wrap them: oklch(var(--background))
+     * The @theme inline block uses them the same way via var().
+     */
+
+    /* Background — warm off-white, never harsh white */
     --background: 0.977 0.008 88;
     --foreground: 0.22 0.018 248;
 
@@ -18,11 +43,11 @@
     --popover: 0.99 0.005 88;
     --popover-foreground: 0.22 0.018 248;
 
-    /* Primary (near-black) */
+    /* Primary (near-black ink) */
     --primary: 0.13 0.012 248;
     --primary-foreground: 0.97 0.004 88;
 
-    /* Secondary */
+    /* Secondary (sage green tint) */
     --secondary: 0.93 0.025 150;
     --secondary-foreground: 0.3 0.08 148;
 
@@ -38,12 +63,12 @@
     --destructive: 0.55 0.22 29;
     --destructive-foreground: 0.99 0 0;
 
-    /* Borders */
+    /* Borders / inputs */
     --border: 0.88 0.012 88;
-    --input: 0.88 0.012 88;
-    --ring: 0.5 0.11 150;
+    --input:  0.88 0.012 88;
+    --ring:   0.5 0.11 150;
 
-    /* Radius */
+    /* Radius scale */
     --radius: 0.75rem;
 
     /* Charts */
@@ -63,112 +88,220 @@
     --sidebar-border: 0.88 0.012 88;
     --sidebar-ring: 0.5 0.11 150;
   }
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
 }
 
-/* ------------------------------------------------ */
-/* Base Styles */
-/* ------------------------------------------------ */
+
+/* ================================================ */
+/* TAILWIND THEME BRIDGE                             */
+/* Maps CSS vars → Tailwind utility classes          */
+/* ================================================ */
+
+@theme inline {
+  --font-sans:    var(--font-sans);
+  --font-display: var(--font-display);
+
+  --color-background:               var(--background);
+  --color-foreground:               var(--foreground);
+  --color-card:                     var(--card);
+  --color-card-foreground:          var(--card-foreground);
+  --color-popover:                  var(--popover);
+  --color-popover-foreground:       var(--popover-foreground);
+  --color-primary:                  var(--primary);
+  --color-primary-foreground:       var(--primary-foreground);
+  --color-secondary:                var(--secondary);
+  --color-secondary-foreground:     var(--secondary-foreground);
+  --color-muted:                    var(--muted);
+  --color-muted-foreground:         var(--muted-foreground);
+  --color-accent:                   var(--accent);
+  --color-accent-foreground:        var(--accent-foreground);
+  --color-destructive:              var(--destructive);
+  --color-border:                   var(--border);
+  --color-input:                    var(--input);
+  --color-ring:                     var(--ring);
+  --color-chart-1:                  var(--chart-1);
+  --color-chart-2:                  var(--chart-2);
+  --color-chart-3:                  var(--chart-3);
+  --color-chart-4:                  var(--chart-4);
+  --color-chart-5:                  var(--chart-5);
+  --color-sidebar:                  var(--sidebar);
+  --color-sidebar-foreground:       var(--sidebar-foreground);
+  --color-sidebar-primary:          var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:           var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border:           var(--sidebar-border);
+  --color-sidebar-ring:             var(--sidebar-ring);
+
+  --radius-sm:  calc(var(--radius) * 0.6);
+  --radius-md:  calc(var(--radius) * 0.8);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+
+/* ================================================ */
+/* BASE STYLES — anxiety-friendly typography         */
+/*                                                   */
+/* Design principles for anxious readers:            */
+/*  1. Warm serif (Fraunces SOFT axis) — no          */
+/*     clinical/sharp sans-serif coldness            */
+/*  2. Generous line-height — not cramped            */
+/*  3. Comfortable measure — ~65ch max for prose     */
+/*  4. Moderate weight body — not paper-thin         */
+/*  5. Optical sizing — crisp at every scale         */
+/*  6. No harsh contrast — foreground is deep navy,  */
+/*     not pure black                                */
+/* ================================================ */
 
 @layer base {
 
-  * {
-    @apply border-border;
+  *,
+  *::before,
+  *::after {
+    @apply border-border outline-ring/50;
   }
 
   html {
+    /* Optical sizing: auto lets the browser set opsz = px size */
+    font-optical-sizing: auto;
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1rem;           /* 16px base */
+    line-height: 1.72;         /* generous — never cramped */
+    letter-spacing: 0.006em;   /* just enough breathing room */
+    font-variation-settings: "SOFT" 45;  /* warm, rounded Fraunces */
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "liga" 1, "calt" 1, "kern" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  @media (min-width: 1024px) {
-    body {
-      font-size: 1.05rem;
-    }
+  /* ── Headings ────────────────────────────────── */
+  /* Fraunces display settings: slightly less SOFT   */
+  /* for clarity, larger opsz for optical crispness  */
+
+  /* font-optical-sizing: auto is set on html, so all headings
+   * automatically receive an appropriate opsz value.
+   * We only override SOFT per heading level. */
+
+  h1 {
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.028em;
+    font-variation-settings: "SOFT" 28;
+  }
+  h2 {
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.022em;
+    font-variation-settings: "SOFT" 30;
+  }
+  h3 {
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    font-variation-settings: "SOFT" 35;
+  }
+  h4, h5, h6 {
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.008em;
+    font-variation-settings: "SOFT" 40;
   }
 
+  /* ── Prose / reading copy ────────────────────── */
+  p {
+    font-variation-settings: "SOFT" 45;
+  }
+
+  /* Small labels — slightly softer, more readable at small sizes */
+  small {
+    font-variation-settings: "SOFT" 52;
+    line-height: 1.6;
+  }
+
+  /* ── Anchor tags ─────────────────────────────── */
+  a {
+    color: inherit;
+    text-underline-offset: 0.2em;
+  }
+
+  /* ── Code (keeps system mono for code blocks) ── */
+  code, kbd, pre, samp {
+    font-family: ui-monospace, "Cascadia Code", "Source Code Pro",
+      Menlo, Consolas, monospace;
+    font-optical-sizing: auto;
+  }
 }
 
-/* ------------------------------------------------ */
-/* Utilities */
-/* ------------------------------------------------ */
+
+/* ================================================ */
+/* UTILITIES                                         */
+/* ================================================ */
 
 @layer utilities {
 
+  /* Display text — sets SOFT axis for warmth;
+   * opsz is left to font-optical-sizing: auto so the
+   * browser matches optical size to the rendered px size */
   .font-display {
     font-family: var(--font-display);
+    font-variation-settings: "SOFT" 28;
+    font-optical-sizing: auto;
   }
 
-  /* Input card — gentle on mobile, more defined on sm+ */
+  /* Prose max-width — keeps reading lines comfortable (~65 chars) */
+  .prose-width {
+    max-width: 65ch;
+  }
+
+  /* Soft body copy — warmer for longer read passages */
+  .font-soft {
+    font-variation-settings: "SOFT" 60;
+    font-optical-sizing: auto;
+  }
+
+  /* Tight display — for hero-scale headings */
+  .font-display-tight {
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 18;
+    font-optical-sizing: auto;
+    letter-spacing: -0.04em;
+    line-height: 0.96;
+  }
+
+  /* Input card — gentle shadow, warm border */
   .input-card {
     border: 1px solid oklch(0.88 0.025 150 / 0.45);
-    box-shadow: 0 8px 32px oklch(0.22 0.018 248 / 0.09), 0 2px 8px oklch(0.22 0.018 248 / 0.05);
+    box-shadow:
+      0 8px 32px oklch(0.22 0.018 248 / 0.09),
+      0 2px 8px  oklch(0.22 0.018 248 / 0.05);
   }
   @media (min-width: 640px) {
     .input-card {
       border: 1px solid oklch(0.88 0.025 150 / 0.5);
-      box-shadow: 0 24px 64px oklch(0.22 0.018 248 / 0.12), 0 4px 16px oklch(0.22 0.018 248 / 0.06), inset 0 1px 0 oklch(1 0 0 / 0.7);
+      box-shadow:
+        0 24px 64px oklch(0.22 0.018 248 / 0.12),
+        0 4px 16px  oklch(0.22 0.018 248 / 0.06),
+        inset 0 1px 0 oklch(1 0 0 / 0.7);
     }
   }
 
+  /* Balanced text wrapping */
   .text-balance {
     text-wrap: balance;
   }
+  .text-pretty {
+    text-wrap: pretty;
+  }
 
-}
-
-/* Shadcn boilerplate block removed — custom design tokens above take precedence */
-
-@theme inline {
-  --font-sans: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
 }

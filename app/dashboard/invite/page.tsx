@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { inviteClient } from "./actions"
+import { BrandLogo } from "@/components/brand-logo"
 
 interface InvitePageProps {
   searchParams: Promise<{ error?: string }>
@@ -27,9 +28,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
           >
             ← Dashboard
           </Link>
-          <span className="font-display text-xl font-semibold text-foreground tracking-tight mx-auto">
-            ThoughtLens
-          </span>
+          <BrandLogo size="sm" />
           <div className="w-24" />
         </nav>
       </header>

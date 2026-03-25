@@ -3,6 +3,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { Card } from "@/components/ui/card"
+import { BrandLogo } from "@/components/brand-logo"
 
 interface DashboardPageProps {
   searchParams: Promise<{ invited?: string; linked?: string }>
@@ -79,14 +80,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       }}
     >
       {/* Nav */}
-      <header className="sticky top-0 z-50 backdrop-blur-md border-b border-border" style={{ background: "oklch(0.977 0.008 88 / 0.92)" }}>
+      <header className="sticky top-0 z-50 border-b border-border/55 backdrop-blur-md" style={{ background: "oklch(0.982 0.007 88 / 0.9)" }}>
         <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/tool" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             ← Tool
           </Link>
-          <span className="font-display text-xl font-semibold text-foreground tracking-tight">
-            ThoughtLens
-          </span>
+          <BrandLogo size="sm" />
           <Link
             href="/dashboard/invite"
             className="text-sm font-medium px-4 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity"
@@ -98,30 +97,30 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
       <main className="max-w-6xl mx-auto px-5 py-8 md:px-6 md:py-10 space-y-6">
         <Card
-          className="rounded-[28px] border border-border/80 px-6 py-6 md:px-8 md:py-8"
+          className="rounded-[28px] border border-border/55 px-6 py-6 md:px-8 md:py-8"
           style={{
             background:
-              "linear-gradient(145deg, oklch(0.995 0.004 88 / 0.98) 0%, oklch(0.965 0.02 150 / 0.72) 100%)",
-            boxShadow: "0 22px 60px oklch(0.22 0.018 248 / 0.08)",
+              "linear-gradient(145deg, oklch(0.996 0.004 88 / 0.98) 0%, oklch(0.968 0.018 150 / 0.7) 100%)",
+            boxShadow: "0 22px 60px oklch(0.22 0.018 248 / 0.06), inset 0 1px 0 oklch(1 0 0 / 0.58)",
           }}
         >
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_360px] lg:items-start">
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="rounded-full border border-border bg-background px-3 py-1">
+                <span className="rounded-full border border-border/60 bg-background/82 px-3 py-1 text-xs font-medium uppercase tracking-[0.15em]">
                   Practitioner dashboard
                 </span>
-                <span className="rounded-full border border-border bg-background px-3 py-1">
+                <span className="rounded-full border border-border/60 bg-background/82 px-3 py-1 text-xs font-medium uppercase tracking-[0.15em]">
                   {clients.length} client{clients.length !== 1 ? "s" : ""}
                 </span>
                 {latestClientActivity && (
-                  <span className="rounded-full border border-border bg-background px-3 py-1">
+                  <span className="rounded-full border border-border/60 bg-background/82 px-3 py-1 text-xs font-medium uppercase tracking-[0.15em]">
                     Last activity {formatRelative(latestClientActivity)}
                   </span>
                 )}
               </div>
               <div>
-                <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
+                <h1 className="font-display text-4xl font-medium tracking-[-0.02em] text-foreground md:text-5xl">
                   {profile.name ?? "Your practice"}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -157,11 +156,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         {clients.length === 0 ? (
           <EmptyState />
         ) : (
-          <Card className="rounded-[24px] border border-border/80 px-5 py-5 md:px-6 md:py-6">
+          <Card className="rounded-[24px] border border-border/55 bg-[oklch(0.993_0.004_88_/_0.82)] px-5 py-5 md:px-6 md:py-6">
             <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Client overview</p>
-                <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-foreground">
+                <p className="text-[11px] uppercase tracking-[0.32em] text-muted-foreground/90">Client overview</p>
+                <h2 className="mt-2 font-display text-2xl font-medium tracking-[-0.015em] text-foreground">
                   Active clients
                 </h2>
               </div>
@@ -224,7 +223,7 @@ function ClientCard({
 
   return (
     <Link href={`/dashboard/clients/${client.id}`} className="group">
-      <div className="h-full rounded-[24px] border border-border bg-card/90 p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="h-full rounded-[24px] border border-border/55 bg-[oklch(0.993_0.004_88_/_0.84)] p-5 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_oklch(0.22_0.018_248_/_0.07)]">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <p className="font-medium text-foreground group-hover:text-primary transition-colors">
@@ -246,7 +245,7 @@ function ClientCard({
 
         <div className="mt-4 flex items-center justify-between gap-3">
           {topPattern && (
-            <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+            <span className="rounded-full border border-border/60 bg-secondary/35 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-secondary-foreground">
               {formatPattern(topPattern[0])}
             </span>
           )}
@@ -261,7 +260,7 @@ function ClientCard({
 
 function EmptyState() {
   return (
-    <Card className="rounded-[24px] px-6 py-16 text-center">
+    <Card className="rounded-[24px] border border-border/55 bg-[oklch(0.993_0.004_88_/_0.82)] px-6 py-16 text-center">
       <p className="text-muted-foreground text-sm mb-2">No clients yet</p>
       <p className="text-muted-foreground/60 text-xs mb-6 max-w-xs mx-auto">
         Invite a client to get started — they&apos;ll use the tool between sessions and you&apos;ll see their thinking patterns here.
@@ -286,9 +285,9 @@ function DashboardStatCard({
   compact?: boolean
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/90 px-4 py-4">
-      <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{label}</p>
-      <p className={`mt-3 text-foreground ${compact ? "text-sm font-medium leading-6" : "text-4xl font-semibold tracking-tight"}`}>
+    <div className="rounded-2xl border border-border/55 bg-background/84 px-4 py-4 shadow-[inset_0_1px_0_oklch(1_0_0_/_0.5)]">
+      <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground/90">{label}</p>
+      <p className={`mt-3 font-display text-foreground ${compact ? "text-sm font-medium leading-6 tracking-[-0.02em]" : "text-4xl font-medium tracking-[-0.02em]"}`}>
         {value}
       </p>
     </div>
@@ -297,9 +296,9 @@ function DashboardStatCard({
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/70 px-3 py-3">
-      <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{value}</p>
+    <div className="rounded-2xl border border-border/55 bg-background/76 px-3 py-3 shadow-[inset_0_1px_0_oklch(1_0_0_/_0.45)]">
+      <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/90">{label}</p>
+      <p className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-foreground">{value}</p>
     </div>
   )
 }

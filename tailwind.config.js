@@ -18,10 +18,25 @@ const tailwindConfig = {
     },
 
     extend: {
-      /* Fonts loaded from next/font */
+      /* Fonts loaded from next/font — both resolve to Fraunces */
+      /* Fallbacks are serif to match Fraunces' character */
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-        display: ["var(--font-display)", "serif"],
+        sans: [
+          "var(--font-sans)",
+          "Iowan Old Style",
+          "Palatino Linotype",
+          "Book Antiqua",
+          "Georgia",
+          "serif",
+        ],
+        display: [
+          "var(--font-display)",
+          "Iowan Old Style",
+          "Palatino Linotype",
+          "Book Antiqua",
+          "Georgia",
+          "serif",
+        ],
       },
 
       /* Design system colors */
