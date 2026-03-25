@@ -6,7 +6,7 @@ import { ArrowRight, Check, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { BrandLogo } from "@/components/brand-logo";
 
-const DASHBOARD_SCREENSHOT_URL = "/therapistviewscreenshot.png";
+const DASHBOARD_SCREENSHOT_URL = "/therapistscreenshot.png";
 const FOUNDER_PHOTO_URL = "/sunil.png";
 const LINKEDIN_URL = "https://www.linkedin.com/in/sunil-sharma-21306255/";
 const CONTACT_EMAIL = "sunil@thoughtlensai.com";
@@ -355,23 +355,14 @@ function InSession() {
               </span>
             </div>
             {DASHBOARD_SCREENSHOT_URL ? (
-              <div className="relative overflow-hidden" style={{ maxHeight: "640px" }}>
+              <div className="overflow-hidden">
                 <Image
                   src={DASHBOARD_SCREENSHOT_URL}
                   alt="ThoughtLens therapist dashboard showing client patterns, session opening, and recurring themes"
                   width={1400}
                   height={920}
                   className="h-auto w-full"
-                  style={{ objectPosition: "top", objectFit: "cover" }}
                   priority
-                />
-                {/* Soft fade at the bottom to indicate scroll-able content */}
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
-                  style={{
-                    background: "linear-gradient(to bottom, transparent 0%, oklch(0.988 0.006 88 / 0.92) 100%)",
-                  }}
                 />
               </div>
             ) : (
