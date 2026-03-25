@@ -532,10 +532,10 @@ function WhatYouGet() {
           body="Not another report to read through. A compact view of the signals that can shape the next conversation."
         />
 
-        <div className="mt-10 grid gap-4 md:grid-cols-2">
+        <div className="mt-10 grid gap-4 md:auto-rows-fr md:grid-cols-2">
           {items.map((item, index) => (
             <FadeUp key={item} delay={index * 0.04}>
-              <div className="flex items-start gap-3 rounded-[18px] border border-border/80 bg-background/80 px-5 py-4">
+              <div className="flex h-full items-start gap-3 rounded-[18px] border border-border/80 bg-background/80 px-5 py-4">
                 <Check
                   className="mt-0.5 h-4 w-4 shrink-0"
                   style={{ color: "oklch(0.44 0.12 152)" }}
