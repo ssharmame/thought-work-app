@@ -6,9 +6,9 @@ import type {
   BalancedStage,
   NextThoughtStage,
 } from "@/services/reflectionValidator.service"
+import { getLangfuse } from "@/lib/langfuse"
 
 const MODEL = "gpt-4o-mini"
-
 let client: OpenAI | null = null
 
 function getClient() {
@@ -22,57 +22,84 @@ function getClient() {
   return client
 }
 
-async function runPrompt<T>(prompt: string): Promise<T> {
+async function runPrompt<T>(prompt: string, spanName?: string, traceId?: string): Promise<T> {
   console.log("OPENAI CALL")
-  const response = await getClient().chat.completions.create({
+  const generation = getLangfuse().generation({
+    traceId,
+    name: spanName ?? "llm-call",
     model: MODEL,
-    temperature: 0.3,
-    messages: [{ role: "user", content: prompt }],
+    input: prompt,
   })
+  let rawOutput = ""
+  let promptTokens: number | undefined
+  let completionTokens: number | undefined
+  let generationOutput: unknown = null
 
-  const message = response.choices?.[0]?.message
+  try {
+    const response = await getClient().chat.completions.create({
+      model: MODEL,
+      temperature: 0.3,
+      messages: [{ role: "user", content: prompt }],
+    })
 
-  if (!message) {
-    console.error("AI RESPONSE ERROR:", response)
-    throw new Error("AI returned no message")
+    promptTokens = response.usage?.prompt_tokens
+    completionTokens = response.usage?.completion_tokens
+
+    const message = response.choices?.[0]?.message
+
+    if (!message) {
+      console.error("AI RESPONSE ERROR:", response)
+      throw new Error("AI returned no message")
+    }
+
+    const content = message.content as unknown
+    if (typeof content === "string") {
+      rawOutput = content
+    } else if (Array.isArray(content)) {
+      rawOutput = content
+        .map((part) => {
+          if (!part || typeof part !== "object") return ""
+          const maybeText = (part as { text?: unknown }).text
+          return typeof maybeText === "string" ? maybeText : ""
+        })
+        .join("")
+    }
+
+    rawOutput = rawOutput.trim()
+
+    console.log("AI RAW RESPONSE:", rawOutput)
+
+    if (!rawOutput) {
+      console.error("AI RESPONSE ERROR:", response)
+      throw new Error("AI returned empty response")
+    }
+
+    const start = rawOutput.indexOf("{")
+    const end = rawOutput.lastIndexOf("}")
+
+    if (start === -1 || end === -1) {
+      console.error("AI invalid JSON:", rawOutput)
+      console.error("AI RESPONSE ERROR:", response)
+      throw new Error("AI response missing JSON")
+    }
+
+    const json = rawOutput.slice(start, end + 1)
+    generationOutput = rawOutput
+    return JSON.parse(json)
+  } catch (error) {
+    generationOutput = rawOutput
+      ? { rawOutput, error: error instanceof Error ? error.message : String(error) }
+      : { error: error instanceof Error ? error.message : String(error) }
+    throw error
+  } finally {
+    generation.end({
+      output: generationOutput,
+      usage: {
+        input: promptTokens,
+        output: completionTokens,
+      },
+    })
   }
-
-  let text = ""
-
-  const content = message.content as unknown
-  if (typeof content === "string") {
-    text = content
-  } else if (Array.isArray(content)) {
-    text = content
-      .map((part) => {
-        if (!part || typeof part !== "object") return ""
-        const maybeText = (part as { text?: unknown }).text
-        return typeof maybeText === "string" ? maybeText : ""
-      })
-      .join("")
-  }
-
-  text = text.trim()
-
-  console.log("AI RAW RESPONSE:", text)
-
-  if (!text) {
-    console.error("AI RESPONSE ERROR:", response)
-    throw new Error("AI returned empty response")
-  }
-
-  const start = text.indexOf("{")
-  const end = text.lastIndexOf("}")
-
-  if (start === -1 || end === -1) {
-    console.error("AI invalid JSON:", text)
-    console.error("AI RESPONSE ERROR:", response)
-    throw new Error("AI response missing JSON")
-  }
-
-  const json = text.slice(start, end + 1)
-
-  return JSON.parse(json)
 }
 
 type ClassificationType =
@@ -479,8 +506,16 @@ Rules:
 • SITUATION must describe something a camera could record.
 • Remove interpretations, conclusions, and assumptions.
 • Do NOT restate opinions like "I think", "maybe", or "they probably".
-• Write in first-person language using "I" or "my".
+• Prefer first-person language when describing my direct experience.
+• If the thought includes another person's statement, excuse, reason, or claim, preserve that attribution exactly.
+• Do NOT rewrite another person's statement as my statement.
+• Keep who said or did what the same as in the original thought.
+• If attribution is unclear, use neutral factual wording instead of guessing.
 • Keep the sentence factual and short.
+
+Attribution examples:
+• "He said he was mentally fatigued and stopped replying." → "He told me he was mentally fatigued and stopped replying."
+• Do NOT rewrite that as: "I stated mental fatigue and he stopped replying."
 
 Example:
 
@@ -523,7 +558,8 @@ export async function generateFactStoryStage(
   thought: string,
   previousThoughts: string[] = [],
   situation: string | null = null,
-  previousPatterns: string[] = []
+  previousPatterns: string[] = [],
+  traceId?: string
 ): Promise<FactStoryStage> {
 
   const context = buildContext(situation, previousThoughts, previousPatterns)
@@ -552,7 +588,11 @@ SITUATION (fact)
 • SITUATION must describe something a camera could record.
 • Something an outside observer could confirm.
 • Must NOT include interpretations or conclusions.
-• Written in first person.
+• Prefer first-person wording when describing my direct experience.
+• If the thought includes another person's statement, excuse, reason, or claim, preserve that attribution exactly.
+• Do NOT convert another person's claim into my claim.
+• Keep who said or did what exactly the same as in the original thought.
+• If attribution is unclear, prefer neutral factual wording rather than guessing.
 
 STORY (automatic thought)
 • The interpretation or underlying fear my mind is making.
@@ -616,6 +656,18 @@ Return:
 "emotions": ["anxious"]
 }
 
+Example 4
+Thought:
+"He is distant and non responsive to me, stating mental fatigue. But he is constantly available on Facebook."
+
+Return:
+{
+"stage": "fact_story",
+"situation": "He told me he was mentally fatigued, he has been distant and non-responsive to me, and he has been active on Facebook.",
+"story": "He might be using mental fatigue as an excuse and not being honest with me.",
+"emotions": []
+}
+
 EMOTION RULE
 • Reuse the person's own emotional words first whenever they named them.
 • If they wrote "empty", "devastated", "numb", "discouraged", or similar, keep those exact words instead of replacing them with broader words like "anxious".
@@ -666,7 +718,7 @@ Return ONLY JSON.
 The situation field must never be empty.
 `
 
-  const factStory = await runPrompt<FactStoryStage>(prompt)
+  const factStory = await runPrompt<FactStoryStage>(prompt, "fact_story", traceId)
 
   const extractedSituation = factStory.situation?.trim() || ""
 
@@ -712,7 +764,8 @@ export type StoryEmotionInput = {
 }
 
 export async function generateStoryEmotionStage(
-  input: StoryEmotionInput
+  input: StoryEmotionInput,
+  traceId?: string
 ): Promise<{ story: string; emotions: string[] }> {
   const story = input.thought.trim()
   const context = buildContext(
@@ -763,7 +816,7 @@ Return JSON only.
 }
 `
 
-  const response = await runPrompt<{ emotions: string[] }>(prompt)
+  const response = await runPrompt<{ emotions: string[] }>(prompt, "story_emotion", traceId)
   const normalizedEmotions = (response.emotions ?? [])
     .map((item) => (typeof item === "string" ? item.trim() : ""))
     .filter((item): item is string => item.length > 0)
@@ -774,7 +827,8 @@ Return JSON only.
 }
 
 export async function generateRecognitionStage(
-  context: RecognitionContext
+  context: RecognitionContext,
+  traceId?: string
 ): Promise<RecognitionStage> {
 
   const previousThoughts = context.previousThoughts ?? []
@@ -849,7 +903,7 @@ Return ONLY JSON. Do not include any explanation text outside the JSON.
 }
 `
 
-  return runPrompt<RecognitionStage>(prompt)
+  return runPrompt<RecognitionStage>(prompt, "recognition", traceId)
 }
 
 const distortions = [
@@ -997,7 +1051,7 @@ export type ThoughtContext = {
 }
 
 export async function generatePatternStage(
-  context: ThoughtContext
+  context: ThoughtContext, traceId?: string
 ): Promise<PatternStage> {
 
   const situation = context.situation.trim() || "I described an unfolding situation."
@@ -1205,7 +1259,7 @@ Return ONLY JSON. No explanation outside the JSON.
 }
 `
 
-  const result = await runPrompt<PatternStage & { patternMessage?: string }>(prompt)
+  const result = await runPrompt<PatternStage & { patternMessage?: string }>(prompt, "pattern", traceId)
   const finalPattern = result.pattern?.trim() || null
 
   return {
@@ -1216,7 +1270,8 @@ Return ONLY JSON. No explanation outside the JSON.
 }
 
 export async function generateBalancedStage(
-  context: ThoughtContext
+  context: ThoughtContext,
+  traceId?: string
 ): Promise<BalancedStage> {
 
   const situation = context.situation.trim() || "I described an unfolding situation."
@@ -1538,11 +1593,12 @@ Return JSON only.
 }
 `
 
-  return runPrompt<BalancedStage>(prompt)
+  return runPrompt<BalancedStage>(prompt, "balanced", traceId)
 }
 
 export async function generateNextThoughtStage(
-  context: ThoughtContext
+  context: ThoughtContext,
+  traceId?: string
 ): Promise<NextThoughtStage> {
 
   const situation = context.situation.trim() || "I described an unfolding situation."
@@ -1649,7 +1705,7 @@ Return JSON:
 }
 `
 
-  const stage = await runPrompt<NextThoughtStage>(prompt)
+  const stage = await runPrompt<NextThoughtStage>(prompt, "next_thought", traceId)
   const filtered = (stage.suggestions ?? []).filter(
     (suggestion) => !isInvalidSuggestionText(suggestion)
   )

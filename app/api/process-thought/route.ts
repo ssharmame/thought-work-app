@@ -9,12 +9,12 @@ import {
   type RecognitionContext,
   type ThoughtContext,
 } from "@/lib/ai"
+import { getLangfuse } from "@/lib/langfuse"
 import { randomUUID } from "crypto"
 import { createClient } from "@/lib/supabase/server"
 
 import { detectSelfHarm } from "@/services/safety.service"
 import { handleClassification } from "@/services/decision.service"
-
 import {
   ensureThreadContext,
   fetchThreadContext,
@@ -179,6 +179,7 @@ async function runClassificationWithRetry(text: string, situation?: string | nul
   throw lastError ?? new Error("classification failed")
 }
 
+
 export async function POST(req: Request) {
   try {
     const { thought, visitorId, sessionId, threadId, threadTitle, forceSameThread } =
@@ -288,6 +289,15 @@ export async function POST(req: Request) {
         : null
     const threadIdForAnalysis = requestedThreadId ?? randomUUID()
 
+    const langfuse = getLangfuse()
+    const trace = langfuse.trace({
+      name: "process-thought",
+      input: { thought: normalizedThought },
+      userId: userId ?? visitorId,
+      metadata: { threadId: threadIdForAnalysis },
+    })
+    const traceId = trace.id
+
     // Ensure visitor/session/thread rows exist before reading or writing analysis output.
     await ensureThreadContext({
       visitorId,
@@ -372,7 +382,8 @@ export async function POST(req: Request) {
             normalizedThought,
             previousThoughts,
             threadSituation,
-            previousPatterns
+            previousPatterns,
+            traceId
           ),
         () => ({ ...fallbackFactStoryStage, thought: normalizedThought }),
         factStorySchema,
@@ -410,7 +421,7 @@ export async function POST(req: Request) {
             thought: extractedStory,
             previousThoughts,
             previousPatterns,
-          }),
+          }, traceId),
         () => ({
           story: extractedStory,
           emotions: [],
@@ -451,7 +462,7 @@ export async function POST(req: Request) {
         normalizedThought,
         previousThoughts,
         await safeGenerateStage(
-          () => generateRecognitionStage(recognitionContext),
+          () => generateRecognitionStage(recognitionContext, traceId),
           () => ({ ...fallbackRecognitionStage }),
           recognitionSchema,
           "recognition"
@@ -477,7 +488,7 @@ export async function POST(req: Request) {
         normalizedThought,
         previousThoughts,
         await safeGenerateStage(
-          () => generatePatternStage(baseContext),
+          () => generatePatternStage(baseContext, traceId),
           () => ({ ...fallbackPatternStage }),
           patternSchema,
           "pattern"
@@ -498,7 +509,7 @@ export async function POST(req: Request) {
         normalizedThought,
         previousThoughts,
         await safeGenerateStage(
-          () => generateBalancedStage(contextWithPattern),
+          () => generateBalancedStage(contextWithPattern, traceId),
           () => ({ ...fallbackBalancedStage }),
           balancedSchema,
           "balanced"
@@ -550,6 +561,8 @@ export async function POST(req: Request) {
 
       const insight = await updateThreadInsight(analysisThreadId)
 
+      trace.update({ output: { pattern: pattern.pattern, emotion: analysis.emotion } })
+
       return Response.json({
         status: "success",
         valid: true,
@@ -570,11 +583,18 @@ export async function POST(req: Request) {
       })
     } catch (error) {
       console.error("AI pipeline error", error)
+      trace.update({
+        output: {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      })
 
       return Response.json(
         createGuidanceResponse(fallbackGuidanceMessage),
         { status: 500 }
       )
+    } finally {
+      await langfuse.flushAsync()
     }
   } catch (error) {
     console.error("/api/process-thought error", error)

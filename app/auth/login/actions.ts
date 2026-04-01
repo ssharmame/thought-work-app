@@ -1,15 +1,17 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { getAppUrl } from "@/lib/app-url"
 import { redirect } from "next/navigation"
 
 export async function signInWithGoogle() {
   const supabase = await createClient()
+  const appUrl = await getAppUrl()
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      redirectTo: `${appUrl}/auth/callback`,
       queryParams: {
         access_type: "offline",
         prompt: "consent",
@@ -32,11 +34,12 @@ export async function sendMagicLink(formData: FormData) {
   }
 
   const supabase = await createClient()
+  const appUrl = await getAppUrl()
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      emailRedirectTo: `${appUrl}/auth/callback`,
     },
   })
 

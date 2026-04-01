@@ -2,6 +2,7 @@
 import ThoughtTimeline from "@/components/reflection/ThoughtTimeline";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { validateSimpleInput } from "@/lib/simpleValidation";
 import { PATTERN_DISPLAY } from "@/lib/ai";
 import { ArrowLeft } from "lucide-react";
@@ -1426,6 +1427,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
               <Button
                 data-ocid="thought_page.submit_button"
                 onClick={() => processThought()}
+                disabled={loading}
                 className="w-full rounded-full h-12 text-base font-semibold"
                 style={{
                   background: "oklch(0.13 0.012 248)",
@@ -1433,7 +1435,16 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                   boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.25)",
                 }}
               >
-                {guidanceMessage ? "Continue" : "Explore this"}
+                {loading ? (
+                  <>
+                    <Spinner className="size-4" />
+                    Thinking...
+                  </>
+                ) : guidanceMessage ? (
+                  "Continue"
+                ) : (
+                  "Explore this"
+                )}
               </Button>
               <p className="text-xs text-center" style={{ color: "oklch(0.65 0.010 248)" }}>
                 This is a thinking tool, not therapy.
@@ -1810,11 +1821,18 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                         <Button
                           data-ocid="thought_page.next_thought.submit_button"
                           onClick={() => processThought()}
-                          disabled={isAnalyzingFollowUp || thought.trim().length < 6}
+                          disabled={isAnalyzingFollowUp}
                           className="w-full rounded-full h-11 text-base font-semibold"
                           style={{ boxShadow: "0 4px 20px oklch(0.13 0.012 248 / 0.18)" }}
                         >
-                          {isAnalyzingFollowUp ? "Analyzing…" : "Go deeper"}
+                          {isAnalyzingFollowUp ? (
+                            <>
+                              <Spinner className="size-4" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            "Go deeper"
+                          )}
                         </Button>
                       </>
                     )}

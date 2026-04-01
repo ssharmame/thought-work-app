@@ -1,5 +1,6 @@
 "use server"
 
+import { getAppUrl } from "@/lib/app-url"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { prisma } from "@/lib/prisma"
@@ -29,36 +30,50 @@ export async function inviteClient(formData: FormData) {
   })
 
   if (existingProfile) {
+    if (existingProfile.id.startsWith("pending_")) {
+      await prisma.userProfile.update({
+        where: { id: existingProfile.id },
+        data: {
+          practitionerId: user.id,
+          role: "CLIENT",
+          name: clientName ?? existingProfile.name,
+        },
+      })
+    } else {
     // User already has an account — just link them, no email needed
-    if (existingProfile.practitionerId === user.id) {
-      redirect("/dashboard/invite?error=already_client")
+      if (existingProfile.practitionerId === user.id) {
+        redirect("/dashboard/invite?error=already_client")
+      }
+      await prisma.userProfile.update({
+        where: { id: existingProfile.id },
+        data: {
+          practitionerId: user.id,
+          role: "CLIENT",
+          name: clientName ?? existingProfile.name,
+        },
+      })
+      // They're already signed up — redirect straight to dashboard
+      redirect("/dashboard?linked=1")
     }
-    await prisma.userProfile.update({
-      where: { id: existingProfile.id },
-      data: {
-        practitionerId: user.id,
-        role: "CLIENT",
-        name: clientName ?? existingProfile.name,
-      },
-    })
-    // They're already signed up — redirect straight to dashboard
-    redirect("/dashboard?linked=1")
   }
 
   // New user — pre-create placeholder and send invite email
-  await prisma.userProfile.create({
-    data: {
-      id: `pending_${Date.now()}_${email.replace(/[^a-z0-9]/g, "_")}`,
-      email,
-      name: clientName,
-      role: "CLIENT",
-      practitionerId: user.id,
-    },
-  })
+  if (!existingProfile) {
+    await prisma.userProfile.create({
+      data: {
+        id: `pending_${Date.now()}_${email.replace(/[^a-z0-9]/g, "_")}`,
+        email,
+        name: clientName,
+        role: "CLIENT",
+        practitionerId: user.id,
+      },
+    })
+  }
 
   const adminClient = createAdminClient()
+  const appUrl = await getAppUrl()
   const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    redirectTo: `${appUrl}/auth/callback`,
     data: {
       practitioner_id: user.id,
       invited_as_client: true,

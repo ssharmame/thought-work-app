@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { sendMagicLink, signInWithGoogle } from "./actions"
 import { BrandLogo } from "@/components/brand-logo"
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button"
 
 interface LoginPageProps {
   searchParams: Promise<{ error?: string; invited?: string }>
@@ -91,13 +92,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
               <div className="mt-5 space-y-4 sm:space-y-5">
                 <form action={signInWithGoogle}>
-                  <button
-                    type="submit"
+                  <PendingSubmitButton
+                    pendingLabel="Connecting to Google..."
                     className="flex w-full items-center justify-center gap-3 rounded-xl border border-foreground/10 bg-foreground px-4 py-3.5 text-sm font-semibold text-background transition-opacity hover:opacity-92"
                   >
                     <GoogleIcon />
                     Continue with Google
-                  </button>
+                  </PendingSubmitButton>
                 </form>
 
                 <div className="flex items-center gap-3">
@@ -123,12 +124,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                     className="w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/45 focus:outline-none focus:ring-1 focus:ring-foreground/15"
                   />
 
-                  <button
-                    type="submit"
+                  <PendingSubmitButton
+                    pendingLabel="Sending magic link..."
                     className="w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary/30"
                   >
                     Send magic link
-                  </button>
+                  </PendingSubmitButton>
                 </form>
 
                 {errorMessage ? (

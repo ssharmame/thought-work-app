@@ -235,6 +235,20 @@
     text-underline-offset: 0.2em;
   }
 
+  @media (pointer: fine) {
+    a[href],
+    button,
+    [role="button"],
+    summary {
+      cursor: pointer;
+    }
+
+    button:disabled,
+    [role="button"][aria-disabled="true"] {
+      cursor: not-allowed;
+    }
+  }
+
   /* ── Code (keeps system mono for code blocks) ── */
   code, kbd, pre, samp {
     font-family: ui-monospace, "Cascadia Code", "Source Code Pro",

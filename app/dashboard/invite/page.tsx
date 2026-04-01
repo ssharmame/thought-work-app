@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { inviteClient } from "./actions"
 import { BrandLogo } from "@/components/brand-logo"
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button"
 
 interface InvitePageProps {
   searchParams: Promise<{ error?: string }>
@@ -82,12 +83,12 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
               <p className="text-sm text-red-500">{errorMessage}</p>
             )}
 
-            <button
-              type="submit"
+            <PendingSubmitButton
+              pendingLabel="Sending invite..."
               className="w-full bg-foreground text-background font-medium rounded-xl py-3 text-sm hover:opacity-90 transition-opacity mt-2"
             >
               Send invite
-            </button>
+            </PendingSubmitButton>
           </form>
         </div>
 
