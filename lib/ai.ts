@@ -416,30 +416,6 @@ Return JSON only:
   return runPrompt<SituationContinuityResult>(prompt)
 }
 
-const THREAD_CONTEXT_BLOCK = `
-Context:
-The situation below is the same situation across the entire thread.
-
-The user is expressing a new thought about the same situation.
-
-The situation describes what actually happened.
-SITUATION must describe something a camera could record.
-The thought describes what the mind concluded.
-
-Do NOT reinterpret the situation.
-Do NOT generate a new situation.
-Focus only on the user's current interpretation.
-
-`
-
-const IMPORTANT_SITUATION_RULE = `
-Important rule:
-The situation described above does not change in this thread.
-Do not reinterpret or modify the situation.
-The user's thoughts may change but the situation remains the same.
-
-`
-
 const FIRST_PERSON_RULE = `
 Write responses in first-person reflection.
 
@@ -458,39 +434,6 @@ Correct:
 "I have not received a response."
 
 `
-
-function buildContext(
-  situation: string | null,
-  previousThoughts: string[],
-  previousPatterns: string[]
-) {
-  const normalizedSituation = situation?.trim() || "No situation recorded yet."
-
-  const formattedThoughts = previousThoughts.length
-    ? previousThoughts
-        .slice(-5)
-        .map((entry, index) => `${index + 1}. ${entry}`)
-        .join("\n")
-    : "- none yet -"
-
-  const formattedPatterns = previousPatterns.length
-    ? previousPatterns
-        .slice(-5)
-        .map((pattern, index) => `${index + 1}. ${pattern}`)
-        .join("\n")
-    : "- none yet -"
-
-  return `Situation in this thread:
-${normalizedSituation}
-
-Previous thoughts:
-${formattedThoughts}
-
-Previous patterns:
-${formattedPatterns}
-
-`
-}
 
 export async function extractSituation(thought: string) {
   const prompt = `
@@ -561,23 +504,14 @@ export async function generateFactStoryStage(
   previousPatterns: string[] = [],
   traceId?: string
 ): Promise<FactStoryStage> {
-
-  const context = buildContext(situation, previousThoughts, previousPatterns)
-
   // Remove help requests before AI extraction
   const cleanedThought = thought
     .replace(/(can you help.*|please help.*|any advice.*|what should i do.*)$/i, "")
     .trim()
 
   const prompt = `
-${THREAD_CONTEXT_BLOCK}
-${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
-${context}
-
-${previousThoughts.length > 0
-  ? `This is a follow-up thought in an ongoing thread. The situation is already established above.`
-  : `Scope: analyze ONLY the current thought. Do NOT infer deeper beliefs or long-term patterns.`}
+Scope: analyze ONLY the current thought. Do NOT infer deeper beliefs or long-term patterns.
 
 You are helping me separate what actually happened from what my mind concluded.
 
@@ -768,17 +702,9 @@ export async function generateStoryEmotionStage(
   traceId?: string
 ): Promise<{ story: string; emotions: string[] }> {
   const story = input.thought.trim()
-  const context = buildContext(
-    input.situation,
-    input.previousThoughts ?? [],
-    input.previousPatterns ?? []
-  )
 
   const prompt = `
-${THREAD_CONTEXT_BLOCK}
-${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
-${context}
 Scope: analyze ONLY the current thought.
 Do NOT infer deeper beliefs or long-term patterns.
 
@@ -831,22 +757,6 @@ export async function generateRecognitionStage(
   traceId?: string
 ): Promise<RecognitionStage> {
 
-  const previousThoughts = context.previousThoughts ?? []
-  const isFollowUp = previousThoughts.length > 0
-
-  const threadBlock = isFollowUp
-    ? `Previous thoughts in this thread:
-${previousThoughts.slice(-5).map((t, i) => `${i + 1}. ${t}`).join("\n")}
-
-This is not the first thought the person has shared about this situation.
-`
-    : ""
-
-  const scopeInstruction = isFollowUp
-    ? `Write one short reflective line that builds on what has already been explored.
-Do not repeat the same grounding question each turn.`
-    : `Write one short reflective line helping me pause and notice this interpretation.`
-
   const prompt = `
 ${FIRST_PERSON_RULE}
 
@@ -861,8 +771,7 @@ My current interpretation:
 The emotion I feel:
 ${context.emotion || "not explicitly named"}
 
-${threadBlock}
-${scopeInstruction}
+Write one short reflective line helping me pause and notice this interpretation.
 
 This reflection appears AFTER the person has already seen their full analysis — the fact, the story, the pattern, the balanced view. It sits just before they decide whether to go deeper.
 
@@ -1058,24 +967,12 @@ export async function generatePatternStage(
   const interpretation =
     context.interpretation.trim() || "A discouraging interpretation of the situation."
   const emotion = context.emotion.trim()
-  const contextBlock = buildContext(
-    context.situation,
-    context.previousThoughts ?? [],
-    context.previousPatterns ?? []
-  )
-
-  const isFollowUp = (context.previousThoughts ?? []).length > 0
 
   const originalThought = context.originalThought?.trim() || null
 
   const prompt = `
-${THREAD_CONTEXT_BLOCK}
-${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
-${contextBlock}
-${isFollowUp
-  ? `This is not the first thought in this thread. When writing the patternMessage, be aware of the full arc of thoughts. If the same pattern is appearing again in a new form, name that — e.g. "this is the same mind doing the same thing from a different angle." If it's a connected but different pattern, note how it builds on what came before.`
-  : `Scope: analyze ONLY the current thought. Do NOT infer deeper beliefs or long-term patterns.`}
+Scope: analyze ONLY the current thought. Do NOT infer deeper beliefs or long-term patterns.
 
 You are identifying the thinking pattern behind this interpretation
 and writing a personal message that helps the person notice it.
@@ -1279,33 +1176,10 @@ export async function generateBalancedStage(
     context.interpretation.trim() || "A discouraging interpretation of the situation."
   const emotion = context.emotion.trim()
   const pattern = context.pattern?.trim() || "not identified"
-  const contextBlock = buildContext(
-    context.situation,
-    context.previousThoughts ?? [],
-    context.previousPatterns ?? []
-  )
-
-  const isFollowUp = (context.previousThoughts ?? []).length > 0
 
   const prompt = `
-${THREAD_CONTEXT_BLOCK}
-${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
-${contextBlock}
-${isFollowUp
-  ? `This is not the first thought in this thread. The previous thoughts are listed above.
-
-CRITICAL RULE: Do NOT write a balanced perspective that only addresses the current thought in isolation.
-You must synthesize the full arc of thoughts in this thread.
-
-How to do this:
-- Notice the spiral: what has the person's mind been doing across all their thoughts?
-- Name the overall fear or pattern they keep circling back to, not just the latest thought
-- Offer a calm, realistic perspective that speaks to the whole picture
-
-The response should feel like: "I notice I've been going deeper into the same fear across all these thoughts — first X, then Y, now Z. But what's actually true is..."
-NOT like: "I feel anxious about [current thought]. It's possible I'm jumping to conclusions."`
-  : `Scope: analyze ONLY the current thought. Do NOT infer deeper beliefs or long-term patterns.`}
+Scope: analyze ONLY the current thought. Do NOT infer deeper beliefs or long-term patterns.
 
 You are helping me slow down and think about my interpretation in a calmer way.
 
@@ -1344,7 +1218,7 @@ Good tone examples:
 "I may not have the full picture yet."
 "There could be other explanations."
 
-Write 2 short sentences maximum.
+Write 3 short sentences maximum.
 Each sentence should express one simple idea.
 
 Avoid:
@@ -1378,70 +1252,152 @@ ${pattern}
 SECTION 1 — balancedThought
 
 Purpose:
-Challenge the distorted belief in a realistic way.
+Help me slow down and loosen certainty in my current thought, without arguing against it.
 
 Rules:
-1. Maximum 2 sentences.
-2. Include BOTH:
-   - reality
-   - alternative interpretation
-3. Structure:
-   "I [reality].
-   But that doesn't necessarily mean [challenged belief]."
-4. If the person named a feeling, you may include it only if it helps keep the thought believable.
-5. Reuse the person's own words where possible: job, failure, rejection, interview, relationship, funding, etc.
-6. Challenge the core distortion in a believable way.
-   Useful phrases:
-   - "doesn't necessarily mean"
-   - "might not be true"
-   - "is not the full picture"
-7. Stay grounded in the exact situation they described.
-8. Never introduce facts the person did not explicitly state.
-   That means:
-   - do NOT say they were not rejected unless they said that
-   - do NOT say nobody replied unless they said that
-   - do NOT say they have or have not applied unless they said that
-   - do NOT fill in process details, outcomes, or history
-9. If a grounding fact is missing, stay neutral instead of adding one.
-   It is better to say "I may not have the full picture yet" than to invent context.
-10. Do NOT use generic statistics or platitudes as grounding facts.
-11. Do NOT teach, explain CBT, or sound like a therapist.
-12. The balanced thought must sound like an inner voice a real person could accept.
+
+Maximum 3 sentences
+Must include BOTH:
+what I’m noticing (reality)
+a less certain or alternative way to hold it
+
+How to write:
+
+Start by acknowledging what feels real or off
+Use natural phrases like:
+“I see…”
+“This feels…”
+“Something about this…”
+If something feels off, acknowledge it directly
+Then reduce certainty (MOST IMPORTANT) using:
+“I might be…”
+“I don’t fully know…”
+“This may not be the full picture”
+“I could be filling in the gaps…”
+
+Important constraints:
+
+Do NOT argue with the thought
+Do NOT directly say the thought is wrong
+Do NOT use rigid phrases like:
+“But that doesn’t necessarily mean…”
+Do NOT introduce new facts
+Stay grounded only in what was described
+Use simple, everyday language
+
+Quality check — before writing, ask yourself:
+
+1. Does this sound like something I would genuinely think to myself, in my own voice —
+   not something a therapist wrote for me?
+2. Have I used any banned phrase? ("But that doesn't necessarily mean…" / "It makes sense that…" /
+   "Everything will be okay" / "It's possible that"). If yes — rewrite.
+3. Could this exact sentence apply to someone in a completely different situation?
+   If yes — it is too generic. Rewrite until it could only apply to this person's specific thought.
+4. Am I arguing against the thought or just loosening certainty?
+   Loosening certainty is the goal. Arguing is not.
+
+ANTI-EXAMPLE (do not produce this):
+"This is hard. But that doesn't necessarily mean it will turn out badly."
+Why it fails: banned phrase, generic, sounds coached, not a real inner thought.
 
 SECTION 2 — steadierWay
 
 Purpose:
-Help the person emotionally sit with this.
+Help me emotionally sit with this experience by giving me a landing point —
+a quiet permission to not resolve this right now.
+
+Do NOT just label or describe the emotion back to me.
+I already know what I feel. The goal is to help me carry it without being
+overwhelmed by it — not to name it, not to fix it, not to predict how it ends.
 
 Rules:
-1. 1-2 short sentences.
-2. Validation and grounding only.
-3. No logic, no reframing, no cognitive correction.
-4. No advice.
-5. If the person used emotional words like "empty" or "devastated", reuse them exactly.
-6. Good examples:
-   - "This is a really heavy situation to be in. It makes sense this feels hard."
-   - "Being here for 4 months and feeling devastated is a lot to carry."
-7. Bad examples:
-   - "This doesn't mean you're failing." (too cognitive)
-   - "You'll be okay." (prediction / reassurance)
+
+2–3 short sentences
+No logic, no reframing, no advice, no predictions
+No invented facts — do NOT introduce any detail not present in the user's own words
+
+How to write:
+
+Give the person somewhere to stand while the feeling exists.
+This might sound like:
+— permission to not have answers yet
+— acknowledgement that the uncertainty itself is the hard part
+— a quiet observation that reduces the urgency to resolve right now
+
+Ground every sentence only in what the person actually wrote.
+Do NOT infer what the other person was thinking, feeling, or intending.
+Do NOT add context the person did not provide.
+Do NOT explain why the situation happened.
+
+Name the emotion precisely only if it adds grounding — not just as a label.
+angry → “frustrating”, “disrespectful”
+betrayed → “hurt”, “let down”
+anxious → “unsettling”, “uncertain”
+
+The output should reduce the person's felt need to immediately resolve the situation.
+It should not tell them what to feel. It should not tell them what to do.
+It should give them a way to breathe through it.
+
+Avoid:
+
+Describing the emotion back to the person (“I feel angry about X”)
+Generic lines like “this is hard” or “this is heavy”
+Any reassurance or future prediction
+Any correction of the thought
+Any sentence the person could have written themselves before reading this
+Any new information or interpretation not present in what the person wrote
+
+Quality check — before writing, ask yourself:
+
+1. Am I describing the emotion back to the person, or giving them somewhere to stand?
+   "I feel angry about X" is a description — they already know this. Reject it.
+   "I don't need to know the truth of this tonight" is a landing point — keep it.
+2. Does it reduce the urgency to resolve the situation, without predicting how it ends?
+   If it tells them what will happen or what to do — reject it.
+3. Is it specific to this situation, or could it apply to anyone?
+   If generic — rewrite until it could only apply to this person's specific circumstances.
+4. Does it contain any logic, reframe, advice, or correction of the thought?
+   If yes — remove it entirely.
+5. Did I introduce any fact, inference, or explanation not present in the person's own words?
+   If yes — remove it. Every sentence must be grounded only in what was written.
+6. Does the person feel less alone with the feeling, not coached through it?
+
+ANTI-EXAMPLE (do not produce this):
+"I feel angry about his distance and the way he's been acting. It feels disrespectful."
+Why it fails: describes the emotion back to the person, gives them nothing to hold,
+no landing point, could have been written by the person themselves.
+
+ANTI-EXAMPLE of invented facts (do not produce this):
+"Maybe he's going through something difficult right now."
+Why it fails: introduces a reason the person never gave. This is fabrication.
 
 SECTION 3 — situationalBelief
 
 Purpose:
-Name the belief that is emerging directly from the current pattern.
+Name the belief or meaning forming from this situation.
 
 Rules:
-1. This is REQUIRED.
-2. Keep it grounded in the current situation and pattern.
-3. It must sound like a prediction or conditional meaning, not identity.
-4. Good examples:
-   - "I may not get the outcome I want"
-   - "Things might go wrong"
-   - "This may not work out"
-5. If the pattern is uncertainty + negative prediction, generate a situational belief, NOT a core belief.
-6. Confidence must always be:
-   "medium"
+
+Keep it short
+Must sound like a prediction or interpretation
+Must stay tied to the current situation
+
+Examples:
+
+“He may not be honest with me”
+“This might not work out”
+“Something could be wrong here”
+
+Avoid:
+
+Identity-level beliefs
+“I am not good enough”
+Overgeneralized beliefs
+“People always leave me”
+
+Confidence:
+
+"medium"
 
 You must also return:
 - observedAcrossPatterns
@@ -1513,65 +1469,31 @@ Rules:
 
 Examples:
 
-Thought: "I am not good enough to find a job"
+Write balancedThought as if I am thinking it to myself — in my own voice, not a therapist's.
+Write steadierWay like a calm, human presence sitting with the feeling — not explaining it.
+
+Final check before returning JSON — reject and rewrite if any of these fail:
+
 balancedThought:
-"I haven't found a job yet, which is hard.
-But that doesn't necessarily mean I'm not good enough."
+— Would a real person actually think this exact thought to themselves?
+  If it sounds like advice or a therapist's line, reject it.
+— Does it contain a banned phrase? Reject it.
+— Is it specific to this person's situation, or could it apply to anyone?
+  If generic, reject it.
 
 steadierWay:
-"This is a really heavy place to be in.
-It makes sense this feels hard."
-situationalBelief:
-"I may not get the outcome I want"
-situationalBeliefConfidence:
-"medium"
-deeperBelief:
-"This may also be loosely connected to not feeling good enough."
-deeperBeliefConfidence:
-"low"
-deeperBeliefReason:
-"Not enough direct evidence yet, emerging signal only"
-reasoningBridge:
-"Repeated negative predictions in uncertain situations may be shaping this belief."
+— Is it giving the person a landing point, or just describing their emotion back to them?
+  If it's just a label ("I feel angry about X"), reject it and rewrite as a grounding statement.
+— Does it reduce the urgency to resolve the situation without predicting how it ends?
+  If it tells them what will happen or what to do, reject it.
+— Is it specific to this situation or generic? If generic, reject it.
+— Does it contain any logic, reframe, advice, or prediction? If yes, remove it.
+— Does it introduce any fact, reason, or explanation the person didn't write? If yes, remove it.
 
-Thought: "I always fail"
-balancedThought:
-"I've had some setbacks, which feels discouraging.
-But that doesn't mean I always fail or will keep failing."
-
-steadierWay:
-"Setbacks like this can feel really discouraging.
-It makes sense this lands heavily."
-situationalBelief:
-"This may turn out badly"
-situationalBeliefConfidence:
-"medium"
-deeperBelief:
-null
-deeperBeliefConfidence:
-null
-deeperBeliefReason:
-null
-reasoningBridge:
-"Linking uncertainty to the worst outcome may be shaping this belief."
-
-Write balancedThought as if I am thinking it to myself.
-Write steadierWay like a calm, human reflection.
-
-Before returning the answer ask yourself:
-
-"Would a real person actually believe the balanced thought?"
-
-If it sounds like advice, reject it.
-If it sounds like a believable inner voice, keep it.
-
-Also check:
-- Does balancedThought feel real, not motivational?
-- Does steadierWay feel calming, not logical?
-- Is situationalBelief grounded in the pattern, not identity-level?
-- Is deeperBelief omitted unless there is enough evidence?
-
-If either sounds clinical or academic, simplify it.
+Overall:
+— If balancedThought sounds motivational, simplify it.
+— If steadierWay sounds like coaching, strip it back.
+— If either sounds clinical or academic, rewrite in plain everyday language.
 
 Return JSON only.
 
@@ -1605,21 +1527,10 @@ export async function generateNextThoughtStage(
   const interpretation =
     context.interpretation.trim() || "A discouraging interpretation of the situation."
   const pattern = context.pattern?.trim() || "not identified"
-  const previousPatterns = context.previousPatterns ?? []
-  const historyLength = context.historyLength ?? previousPatterns.length
-  const contextBlock = buildContext(
-    context.situation,
-    context.previousThoughts ?? [],
-    previousPatterns
-  )
-  const previousThoughts = context.previousThoughts ?? []
 
   const prompt = `
-${THREAD_CONTEXT_BLOCK}
-${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
-${contextBlock}
-Scope: analyze patterns across multiple thoughts within the same situation.
+Scope: analyze the current thought within the current situation only.
 
 You are helping me explore my thinking more deeply — not spiral further into negativity.
 
@@ -1644,9 +1555,6 @@ Balanced perspective:
 """
 ${context.balancedThought?.trim() || "None"}
 """
-
-Previous thoughts already expressed:
-${previousThoughts.length ? previousThoughts.join("\n") : "- none -"}
 
 Your task:
 
@@ -1732,8 +1640,6 @@ export async function validateThoughtSuggestions(
     : "- none -"
 
   const prompt = `
-${THREAD_CONTEXT_BLOCK}
-${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
 You are evaluating whether the following suggestions represent automatic negative thoughts about a single situation.
 
@@ -1881,10 +1787,8 @@ export async function generateReflectionCompletion(
   const recentHistory = input.thoughtHistory.length ? input.thoughtHistory.join("\\n- ") : "None"
 
   const prompt = `
-${THREAD_CONTEXT_BLOCK}
-${IMPORTANT_SITUATION_RULE}
 ${FIRST_PERSON_RULE}
-Scope: analyze patterns across multiple thoughts within the same situation.
+Scope: analyze whether the current reflection has gone far enough.
 
 You are determining whether I have sufficiently explored my current thought about a single situation.
 
@@ -1994,4 +1898,178 @@ Return JSON only:
 `
 
   return runPrompt<ReflectionCardOutput>(prompt)
+}
+
+export type PractitionerSessionFocusInput = {
+  pattern: string | null
+  emotion: string | null
+  belief: string | null
+  recentSample: string | null
+  evidence: string[]
+  rangeLabel: string
+  reflectionCount: number
+}
+
+export type PractitionerSessionFocusOutput = {
+  summary: string
+  opening: string
+  whyItMatters: string
+  explore: string[]
+  question: string
+}
+
+export async function generatePractitionerSessionFocus(
+  input: PractitionerSessionFocusInput
+): Promise<PractitionerSessionFocusOutput> {
+  const evidenceBlock = input.evidence.length
+    ? input.evidence.map((item, index) => `${index + 1}. ${item}`).join("\n")
+    : "- none -"
+
+  const prompt = `
+You are writing a practitioner-facing session focus summary for ThoughtLens.
+
+You are NOT writing to the client.
+You are helping a therapist or coach start the next session well.
+
+Use only the evidence provided below.
+Do NOT invent facts, diagnoses, causes, or history.
+Do NOT use therapy jargon unless it is already obvious from the pattern label.
+Keep the tone clinically useful, warm, and concise.
+
+Signals from recent reflections:
+- Time range: ${input.rangeLabel}
+- Reflection count in range: ${input.reflectionCount}
+- Top pattern: ${input.pattern ?? "not identified"}
+- Top emotion: ${input.emotion ?? "not identified"}
+- Working situational belief: ${input.belief ?? "not identified"}
+- Representative recent thought: ${input.recentSample ?? "not available"}
+
+Supporting reflection evidence:
+${evidenceBlock}
+
+Return JSON only:
+{
+  "summary": "",
+  "opening": "",
+  "whyItMatters": "",
+  "explore": ["", ""],
+  "question": ""
+}
+
+Rules:
+- summary: 1-2 sentences, describe what has been showing up recently
+- opening: one natural opening line the practitioner could actually say
+- whyItMatters: 1 sentence explaining the clinical usefulness of exploring this
+- explore: exactly 2 short bullet-like phrases, not full paragraphs
+- question: one follow-up question that deepens understanding without leading the client
+- Ground everything in the reflections provided
+- Avoid generic filler that could apply to any client
+`
+
+  const result = await runPrompt<PractitionerSessionFocusOutput>(prompt, "practitioner_session_focus")
+
+  return {
+    summary: result.summary?.trim() || "",
+    opening: result.opening?.trim() || "",
+    whyItMatters: result.whyItMatters?.trim() || "",
+    explore: (result.explore ?? [])
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter((item): item is string => item.length > 0)
+      .slice(0, 2),
+    question: result.question?.trim() || "",
+  }
+}
+
+export type PractitionerStructuredBeliefInput = {
+  pattern: string | null
+  patternCount: number
+  emotion: string | null
+  recentSample: string | null
+  evidence: string[]
+}
+
+export type PractitionerStructuredBeliefOutput = {
+  belief: string
+  observedAcrossPatterns: {
+    pattern: string
+    count: number
+  }
+  beliefType: "Situational"
+  confidence: "Low" | "Medium" | "High"
+  whyThisLevel: string
+  reasoning: string
+  alternative: string
+  example: string | null
+}
+
+export async function generatePractitionerStructuredBelief(
+  input: PractitionerStructuredBeliefInput
+): Promise<PractitionerStructuredBeliefOutput | null> {
+  if (!input.pattern || input.patternCount <= 0) return null
+
+  const evidenceBlock = input.evidence.length
+    ? input.evidence.map((item, index) => `${index + 1}. ${item}`).join("\n")
+    : "- none -"
+
+  const prompt = `
+You are writing a practitioner-facing hypothesis about a situational belief forming across recent reflections.
+
+Important:
+- This is NOT a diagnosis.
+- This is NOT a core belief unless the evidence clearly supports it.
+- Stay cautious, evidence-based, and grounded in the reflections below.
+- Use only the evidence provided.
+- Do NOT invent backstory, motives, or identity-level conclusions.
+
+Signals:
+- Pattern appearing most often: ${input.pattern}
+- Count of that pattern: ${input.patternCount}
+- Common accompanying emotion: ${input.emotion ?? "not identified"}
+- Representative reflection: ${input.recentSample ?? "not available"}
+
+Supporting reflection evidence:
+${evidenceBlock}
+
+Return JSON only:
+{
+  "belief": "",
+  "observedAcrossPatterns": {
+    "pattern": "",
+    "count": 0
+  },
+  "beliefType": "Situational",
+  "confidence": "Medium",
+  "whyThisLevel": "",
+  "reasoning": "",
+  "alternative": "",
+  "example": ""
+}
+
+Rules:
+- belief must be a situational belief, not a core identity belief
+- belief should sound like a prediction, expectation, or meaning-making statement
+- confidence should usually be Low or Medium, only High if evidence is unusually strong
+- whyThisLevel: 1 short sentence
+- reasoning: 1-2 sentences, grounded in the observed pattern and evidence
+- alternative: 1 sentence that loosens certainty without becoming falsely positive
+- example: quote or closely reflect one provided thought
+- observedAcrossPatterns.pattern should reflect the provided pattern label
+- observedAcrossPatterns.count should match the provided count
+`
+
+  const result = await runPrompt<PractitionerStructuredBeliefOutput>(prompt, "practitioner_structured_belief")
+
+  return {
+    belief: result.belief?.trim() || "",
+    observedAcrossPatterns: {
+      pattern: result.observedAcrossPatterns?.pattern?.trim() || input.pattern,
+      count: input.patternCount,
+    },
+    beliefType: "Situational",
+    confidence: result.confidence ?? "Medium",
+    whyThisLevel: result.whyThisLevel?.trim() || "",
+    reasoning: result.reasoning?.trim() || "",
+    alternative: result.alternative?.trim() || "",
+    example: result.example?.trim() || input.recentSample,
+  }
 }

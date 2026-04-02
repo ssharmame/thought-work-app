@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { Card } from "@/components/ui/card"
 import { BrandLogo } from "@/components/brand-logo"
+import {
+  generatePractitionerSessionFocus,
+  generatePractitionerStructuredBelief,
+} from "@/lib/ai"
 
 const CHART_COLORS = [
   "oklch(0.58 0.11 150)",
@@ -85,7 +89,9 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
   })
 
   const totalReflections = uniqueThoughts.length
-  const totalThreads = await prisma.thread.count({ where: { userId: clientId } })
+  const activeDays = new Set(
+    uniqueThoughts.map((t) => new Date(t.createdAt).toISOString().slice(0, 10))
+  ).size
 
   // ─── Patterns (deduplicated) ─────────────────────────────────────────────
   const patternCounts = countBy(uniqueThoughts, (t) => normalizeKey(t.pattern))
@@ -175,6 +181,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
   const recentTopPattern = Object.entries(recentPatternCounts).sort(([, a], [, b]) => b - a)[0]
   const recentEmotionCounts = countBy(recentThoughts, (t) => normalizeKey(t.emotion))
   const recentTopEmotion = Object.entries(recentEmotionCounts).sort(([, a], [, b]) => b - a)[0]
+  const hasReflectionsInSelectedRange = recentThoughts.length > 0
   const recentSample = selectRepresentativeThought(
     recentThoughts,
     (t) => normalizeKey(t.pattern) === (recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? "")
@@ -191,18 +198,60 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
     ? collectEvidence(uniqueThoughts, (t) => normalizeKey(t.coreBelief) === coreWound)
     : []
   const emotionSummary = summarizeEmotions(uniqueThoughts)
-  const situationalBelief = deriveSituationalBelief(recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null)
-  const structuredBelief = buildStructuredBelief({
-    pattern: recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null,
-    patternCount: recentTopPattern?.[1] ?? topPatternOverall?.[1] ?? 0,
+  const topPatternForRange = recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null
+  const topPatternCountForRange = recentTopPattern?.[1] ?? topPatternOverall?.[1] ?? 0
+  const topEmotionForRange = recentTopEmotion?.[0] ?? topEmotionOverall?.[0] ?? null
+  const beliefSignalState = getBeliefSignalState(topPatternCountForRange)
+  const sessionFocusRangeLabel = hasReflectionsInSelectedRange
+    ? selectedRange.title
+    : "Most recent available reflections"
+  const sessionFocusTitle = hasReflectionsInSelectedRange
+    ? `Next session starting point (based on ${selectedRange.title.toLowerCase()})`
+    : "Next session starting point (based on most recent available reflections)"
+  const sessionFocusDescription = hasReflectionsInSelectedRange
+    ? "Use this to open the conversation and orient your focus."
+    : `No reflections were captured in ${selectedRange.title.toLowerCase()}, so this uses the most recent available reflections.`
+  const situationalBelief = deriveSituationalBelief(topPatternForRange)
+  const fallbackStructuredBelief = buildStructuredBelief({
+    pattern: topPatternForRange,
+    patternCount: topPatternCountForRange,
     situationalBelief,
     example: recentSample,
   })
-  const sessionFocus = buildSessionFocus({
-    pattern: recentTopPattern?.[0] ?? topPatternOverall?.[0] ?? null,
-    emotion: recentTopEmotion?.[0] ?? topEmotionOverall?.[0] ?? null,
+  const fallbackSessionFocus = buildSessionFocus({
+    pattern: topPatternForRange,
+    emotion: topEmotionForRange,
     belief: situationalBelief,
   })
+  const sessionFocusEvidence = collectEvidence(
+    hasReflectionsInSelectedRange ? recentThoughts : uniqueThoughts,
+    (t) => normalizeKey(t.pattern) === normalizeKey(topPatternForRange)
+  )
+  const beliefEvidence = collectEvidence(
+    hasReflectionsInSelectedRange ? recentThoughts : uniqueThoughts,
+    (t) => normalizeKey(t.pattern) === normalizeKey(topPatternForRange)
+  )
+
+  const [structuredBelief, sessionFocus] = await Promise.all([
+    beliefSignalState === "insufficient"
+      ? Promise.resolve(null)
+      : generatePractitionerStructuredBelief({
+          pattern: topPatternForRange,
+          patternCount: topPatternCountForRange,
+          emotion: topEmotionForRange,
+          recentSample,
+          evidence: beliefEvidence,
+        }).catch(() => fallbackStructuredBelief),
+    generatePractitionerSessionFocus({
+      pattern: topPatternForRange,
+      emotion: topEmotionForRange,
+      belief: situationalBelief,
+      recentSample,
+      evidence: sessionFocusEvidence,
+      rangeLabel: sessionFocusRangeLabel,
+      reflectionCount: hasReflectionsInSelectedRange ? recentThoughts.length : uniqueThoughts.length,
+    }).catch(() => fallbackSessionFocus),
+  ])
   const groupedRecentThreads = groupThreadsBySituation(threads)
   const shouldPromptDeeper =
     totalReflections < 6 ||
@@ -273,7 +322,7 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
               </div>
               <div className="grid max-w-md gap-3 sm:grid-cols-2">
                 <StatCard label="Reflections" value={String(totalReflections)} />
-                <StatCard label="Threads" value={String(totalThreads)} />
+                <StatCard label="Active days" value={String(activeDays)} />
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">
@@ -302,8 +351,8 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
 
         <InsightPanel
           eyebrow="Session bridge"
-          title="Next session starting point (based on last 7 days)"
-          description="Use this to open the conversation and orient your focus."
+          title={sessionFocusTitle}
+          description={sessionFocusDescription}
           className="border-[1.5px]"
           panelStyle={{
             background:
@@ -430,91 +479,51 @@ export default async function ClientDetailPage({ params, searchParams }: ClientP
               <InsightPanel
                 eyebrow="Belief layering"
                 title="Situational belief forming from recent patterns"
-                description="Based on reflections — not a diagnosis. Use as a hypothesis to explore."
+                description="A light hypothesis based on repeated reflections, not a diagnosis."
               >
-                {/* 1. Belief */}
                 <div className="rounded-2xl border border-border bg-background/80 px-5 py-5">
-                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80 mb-2">What may be forming</p>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">
+                      Possible belief signal
+                    </p>
+                    <span className="rounded-full border border-border px-2.5 py-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      {beliefSignalState === "emerging" ? "Emerging" : "Supported"}
+                    </span>
+                  </div>
                   <p className="text-xl font-medium italic text-foreground">&ldquo;{structuredBelief.belief}&rdquo;</p>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    Showing up mostly through {structuredBelief.observedAcrossPatterns.pattern.toLowerCase()} across{" "}
+                    {structuredBelief.observedAcrossPatterns.count} reflection
+                    {structuredBelief.observedAcrossPatterns.count === 1 ? "" : "s"}.
+                  </p>
                 </div>
 
-                {/* 2. Observed across + type + confidence */}
-                <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Noticed across</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{structuredBelief.observedAcrossPatterns.pattern}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{structuredBelief.observedAcrossPatterns.count}× in reflections</p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Belief type</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{structuredBelief.beliefType}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Not a core belief yet</p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Confidence</p>
-                    <p className="mt-2 text-sm font-medium text-foreground">{structuredBelief.confidence}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Use as a starting point</p>
-                  </div>
-                </div>
-
-                {/* 3. Why this level */}
                 <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Why this confidence level</p>
-                  <p className="mt-2 text-sm leading-6 text-foreground">{structuredBelief.whyThisLevel}</p>
-                </div>
-
-                {/* 4. Reasoning */}
-                <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Reasoning</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Why this may be forming</p>
                   <p className="mt-2 text-sm leading-6 text-foreground">{structuredBelief.reasoning}</p>
                 </div>
 
-                {/* 5. Alternative */}
-                <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Alternative possibility</p>
-                  <p className="mt-2 text-sm leading-6 text-foreground">{structuredBelief.alternative}</p>
-                </div>
-
-                {/* 6. Example */}
                 {structuredBelief.example && (
                   <div className="mt-3 rounded-2xl border border-border bg-background/80 px-4 py-4">
                     <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">Example from reflections</p>
                     <p className="mt-2 text-sm leading-6 text-foreground italic">&ldquo;{structuredBelief.example}&rdquo;</p>
                   </div>
                 )}
-
-                {/* Deeper belief (only when strong evidence) */}
-                {shouldShowDeeperBelief && coreWound && (
-                  <div className="mt-4 rounded-2xl border border-border bg-background/80 px-4 py-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/80">
-                      {coreBeliefConfidence === "strong"
-                        ? "Deeper belief — stronger signal"
-                        : "Possible deeper belief (low confidence)"}
-                    </p>
-                    <p className="mt-3 text-lg font-medium italic text-foreground">
-                      &ldquo;{formatBelief(coreWound)}&rdquo;
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Noticed in {coreWoundCount} reflection{coreWoundCount === 1 ? "" : "s"}.
-                    </p>
-                    {coreWoundExample && (
-                      <p className="mt-3 text-sm leading-6 text-muted-foreground italic">
-                        Example: &ldquo;{coreWoundExample}&rdquo;
-                      </p>
-                    )}
-                    <details className="mt-4 rounded-2xl border border-border bg-background/70">
-                      <summary className="cursor-pointer list-none px-4 py-3 text-sm text-muted-foreground hover:text-foreground">
-                        See reflections behind this signal
-                      </summary>
-                      <div className="border-t border-border px-4 py-4">
-                        <EvidenceList
-                          label={`Noticed in ${beliefCounts[coreWound]} reflections`}
-                          items={topBeliefEvidence}
-                        />
-                      </div>
-                    </details>
-                  </div>
-                )}
+                <p className="mt-3 text-xs leading-6 text-muted-foreground">{structuredBelief.alternative}</p>
+              </InsightPanel>
+            )}
+            {!structuredBelief && topPatternForRange && (
+              <InsightPanel
+                eyebrow="Belief layering"
+                title="Belief signal not strong enough yet"
+                description="This view waits for repeated reflections before surfacing a belief hypothesis."
+              >
+                <div className="rounded-2xl border border-border bg-background/80 px-5 py-5">
+                  <p className="text-sm leading-7 text-foreground">
+                    Only {topPatternCountForRange} reflection{topPatternCountForRange === 1 ? "" : "s"} currently support this signal.
+                    Once the same pattern appears a few more times, a more reliable situational belief summary can show up here.
+                  </p>
+                </div>
               </InsightPanel>
             )}
           </div>
@@ -1141,6 +1150,8 @@ type StructuredBelief = {
   example: string | null
 }
 
+type BeliefSignalState = "insufficient" | "emerging" | "supported"
+
 function buildStructuredBelief({
   pattern,
   patternCount,
@@ -1230,6 +1241,12 @@ function buildStructuredBelief({
       "This may reflect a temporary response to recent events rather than a stable pattern",
     example,
   }
+}
+
+function getBeliefSignalState(count: number): BeliefSignalState {
+  if (count < 3) return "insufficient"
+  if (count < 5) return "emerging"
+  return "supported"
 }
 
 function buildSessionFocus({

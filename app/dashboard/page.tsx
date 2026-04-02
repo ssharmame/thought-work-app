@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/prisma"
 import { Card } from "@/components/ui/card"
 import { BrandLogo } from "@/components/brand-logo"
+import { RemoveClientButton } from "@/components/dashboard/remove-client-button"
 
 interface DashboardPageProps {
   searchParams: Promise<{ invited?: string; linked?: string }>
@@ -249,9 +250,15 @@ function ClientCard({
               {formatPattern(topPattern[0])}
             </span>
           )}
-          <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-            Open →
-          </span>
+          <div className="flex items-center gap-3">
+            <RemoveClientButton
+              clientId={client.id}
+              clientName={client.name ?? client.email ?? "this client"}
+            />
+            <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+              Open →
+            </span>
+          </div>
         </div>
       </div>
     </Link>

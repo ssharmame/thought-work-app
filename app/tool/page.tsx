@@ -1365,10 +1365,10 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
         <FadeUp>
           <header className="text-center space-y-2 md:space-y-3">
             <h1 className="font-display text-[1.75rem] sm:text-[2.2rem] md:text-[2.9rem] font-medium leading-[1.12] tracking-[-0.018em] text-foreground text-balance">
-              What happened since your last session?
+              What&apos;s been on your mind?
             </h1>
             <p className="mt-1 text-sm sm:text-base leading-[1.7]" style={{ color: "oklch(0.52 0.018 248)" }}>
-              Capture a moment your mind got stuck.
+              The fear, the spiral, the worry that keeps coming back.
             </p>
           </header>
         </FadeUp>
