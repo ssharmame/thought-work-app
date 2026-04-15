@@ -7,11 +7,12 @@ import { BrandLogo } from "@/components/brand-logo"
 import { RemoveClientButton } from "@/components/dashboard/remove-client-button"
 
 interface DashboardPageProps {
-  searchParams: Promise<{ invited?: string; linked?: string }>
+  searchParams: Promise<{ invited?: string; linked?: string; share_link?: string }>
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const params = await searchParams
+  const shareLink = params.share_link ? decodeURIComponent(params.share_link) : null
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
@@ -22,8 +23,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   })
   if (!profile || profile.role !== "PRACTITIONER") redirect("/tool")
 
-  const successMessage = params.invited === "1"
-    ? "Invite sent — they'll get an email to sign up."
+  const successMessage = params.invited === "1" && !shareLink
+    ? "Invite sent — they'll receive an email to accept the invitation."
     : params.linked === "1"
     ? "Client linked successfully."
     : null
@@ -150,6 +151,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         {successMessage && (
           <div className="bg-secondary border border-secondary-foreground/10 text-secondary-foreground text-sm rounded-2xl px-4 py-3">
             {successMessage}
+          </div>
+        )}
+
+        {/* Share link banner — shown when the client already has a Supabase account */}
+        {shareLink && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 space-y-2">
+            <p className="text-sm font-medium text-amber-900">
+              This person already has an account — share the link below so they can accept your invitation.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-white border border-amber-200 rounded-lg px-3 py-2 text-amber-800 break-all">
+                {shareLink}
+              </code>
+            </div>
           </div>
         )}
 

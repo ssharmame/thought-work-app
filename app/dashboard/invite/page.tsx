@@ -13,6 +13,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
   const errorMessages: Record<string, string> = {
     invalid_email: "Please enter a valid email address.",
     already_client: "This person is already your client.",
+    already_invited: "An invitation is already pending for this email address.",
     send_failed: "Something went wrong sending the invite. Please try again.",
   }
 

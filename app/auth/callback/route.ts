@@ -6,6 +6,7 @@ import { claimAnonymousSessions } from "@/repositories/thought.repositories"
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get("code")
+  const invitationToken = searchParams.get("invitation_token")
 
   if (code) {
     const supabase = await createClient()
@@ -17,6 +18,22 @@ export async function GET(request: Request) {
       } = await supabase.auth.getUser()
 
       if (user) {
+        // If this user arrived via an invitation link, hand them off to the
+        // Accept / Decline page before touching their profile at all.
+        if (invitationToken) {
+          const forwardedHost = request.headers.get("x-forwarded-host")
+          const isLocalEnv = process.env.NODE_ENV === "development"
+          const base = isLocalEnv
+            ? origin
+            : forwardedHost
+              ? `https://${forwardedHost}`
+              : origin
+
+          return NextResponse.redirect(
+            `${base}/invite/accept/${invitationToken}`
+          )
+        }
+
         const { isNew, role } = await ensureUserProfile(
           user.id,
           user.email ?? null,
@@ -24,18 +41,15 @@ export async function GET(request: Request) {
         )
 
         // Claim any anonymous sessions from before login.
-        // Read the visitorId cookie stamped by the tool page.
         const cookieHeader = request.headers.get("cookie") ?? ""
         const visitorIdMatch = cookieHeader.match(/tl_claim_visitor=([^;]+)/)
         const claimVisitorId = visitorIdMatch?.[1]?.trim()
 
         if (isNew && claimVisitorId) {
-          // Stamp userId onto all threads/thoughts from this visitor
           await claimAnonymousSessions(claimVisitorId, user.id).catch(() => {})
         }
 
         // New users → onboarding to pick their role
-        // Invited clients skip onboarding (role already set to CLIENT)
         // Returning users → route by role
         let destination: string
         if (isNew && !role) {
@@ -49,7 +63,6 @@ export async function GET(request: Request) {
         const forwardedHost = request.headers.get("x-forwarded-host")
         const isLocalEnv = process.env.NODE_ENV === "development"
 
-        // Clear the claim cookie in the redirect response
         const redirectUrl = isLocalEnv
           ? `${origin}${destination}`
           : forwardedHost
@@ -67,7 +80,9 @@ export async function GET(request: Request) {
   return NextResponse.redirect(`${origin}/auth/login?error=send_failed`)
 }
 
-// Returns isNew (true on first login) and the role if already determined
+// Returns isNew (true on first login) and the role if already determined.
+// NOTE: invited clients no longer go through this path — they are handled by
+// the /invite/accept/[token] page after authentication.
 async function ensureUserProfile(
   userId: string,
   email: string | null,
@@ -78,45 +93,22 @@ async function ensureUserProfile(
   })
 
   if (!existing) {
-    // Check if a placeholder profile was pre-created via invite (matched by email)
-    const pendingProfile = email
-      ? await prisma.userProfile.findUnique({ where: { email } })
-      : null
-
-    if (pendingProfile && pendingProfile.id.startsWith("pending_")) {
-      // Invited client — replace placeholder with real auth UUID, role already CLIENT
-      await prisma.userProfile.delete({ where: { id: pendingProfile.id } })
-      await prisma.userProfile.create({
-        data: {
-          id: userId,
-          email,
-          role: "CLIENT",
-          name: pendingProfile.name,
-          practitionerId: pendingProfile.practitionerId,
-        },
+    // Clean up any orphaned pending_ placeholder (from the old invite flow)
+    if (email) {
+      await prisma.userProfile.deleteMany({
+        where: { email, id: { startsWith: "pending_" } },
       })
-      return { isNew: true, role: "CLIENT" }
-    } else {
-      // Brand new signup — create with no meaningful role yet, send to onboarding
-      const practitionerId =
-        (userMeta?.practitioner_id as string | undefined) ?? null
-      const isInvitedAsClient = userMeta?.invited_as_client === true
-
-      const role = isInvitedAsClient ? "CLIENT" : null
-
-      await prisma.userProfile.create({
-        data: {
-          id: userId,
-          email,
-          // Use CLIENT as DB default but flag isNew so we send to onboarding
-          // unless they were explicitly invited as a client
-          role: role ?? "CLIENT",
-          practitionerId,
-        },
-      })
-      // null role signals "needs onboarding" — invited clients already know their role
-      return { isNew: true, role }
     }
+
+    // Brand new signup — create with no meaningful role yet, send to onboarding
+    await prisma.userProfile.create({
+      data: {
+        id: userId,
+        email,
+        role: "CLIENT", // DB default; null role signals onboarding needed
+      },
+    })
+    return { isNew: true, role: null }
   } else {
     // Returning user — update email if changed
     if (email && existing.email !== email) {

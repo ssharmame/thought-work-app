@@ -20,60 +20,58 @@ export async function inviteClient(formData: FormData) {
 
   const practitioner = await prisma.userProfile.findUnique({
     where: { id: user.id },
-    select: { role: true },
+    select: { role: true, name: true },
   })
   if (!practitioner || practitioner.role !== "PRACTITIONER") redirect("/tool")
 
-  // Check if a UserProfile already exists for this email
+  // Check if this email is already an active client of this practitioner
   const existingProfile = await prisma.userProfile.findUnique({
     where: { email },
+    select: { id: true, practitionerId: true },
   })
 
-  if (existingProfile) {
-    if (existingProfile.id.startsWith("pending_")) {
-      await prisma.userProfile.update({
-        where: { id: existingProfile.id },
-        data: {
-          practitionerId: user.id,
-          role: "CLIENT",
-          name: clientName ?? existingProfile.name,
-        },
-      })
-    } else {
-    // User already has an account — just link them, no email needed
-      if (existingProfile.practitionerId === user.id) {
-        redirect("/dashboard/invite?error=already_client")
-      }
-      await prisma.userProfile.update({
-        where: { id: existingProfile.id },
-        data: {
-          practitionerId: user.id,
-          role: "CLIENT",
-          name: clientName ?? existingProfile.name,
-        },
-      })
-      // They're already signed up — redirect straight to dashboard
-      redirect("/dashboard?linked=1")
-    }
+  if (
+    existingProfile &&
+    !existingProfile.id.startsWith("pending_") &&
+    existingProfile.practitionerId === user.id
+  ) {
+    redirect("/dashboard/invite?error=already_client")
   }
 
-  // New user — pre-create placeholder and send invite email
-  if (!existingProfile) {
-    await prisma.userProfile.create({
-      data: {
-        id: `pending_${Date.now()}_${email.replace(/[^a-z0-9]/g, "_")}`,
-        email,
-        name: clientName,
-        role: "CLIENT",
-        practitionerId: user.id,
-      },
-    })
+  // Check for an already-pending invitation for this email from this practitioner
+  const existingInvitation = await prisma.clientInvitation.findFirst({
+    where: {
+      clientEmail: email,
+      practitionerId: user.id,
+      status: "PENDING",
+      expiresAt: { gt: new Date() },
+    },
+  })
+
+  if (existingInvitation) {
+    redirect("/dashboard/invite?error=already_invited")
   }
+
+  // Create an invitation record (expires in 7 days)
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 7)
+
+  const invitation = await prisma.clientInvitation.create({
+    data: {
+      practitionerId: user.id,
+      clientEmail: email,
+      clientName,
+      expiresAt,
+    },
+  })
 
   const adminClient = createAdminClient()
   const appUrl = await getAppUrl()
+
+  // Send the invite email via Supabase — the token travels in the redirect URL
+  // so we can surface the Accept / Decline UI after the client authenticates.
   const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${appUrl}/auth/callback`,
+    redirectTo: `${appUrl}/auth/callback?invitation_token=${invitation.token}`,
     data: {
       practitioner_id: user.id,
       invited_as_client: true,
@@ -81,11 +79,38 @@ export async function inviteClient(formData: FormData) {
   })
 
   if (error) {
-    console.error("Invite error:", error)
-    // Clean up placeholder if email failed
-    await prisma.userProfile.deleteMany({
-      where: { email, id: { startsWith: "pending_" } },
-    })
+    console.error("Invite email error — status:", (error as { status?: number }).status)
+    console.error("Invite email error — message:", error.message)
+    console.error("Invite email error — full:", JSON.stringify(error))
+
+    const msg = error.message?.toLowerCase() ?? ""
+
+    // User already has a confirmed Supabase account — inviteUserByEmail won't
+    // work for them.  Keep the invitation and give the practitioner a direct
+    // acceptance link to share instead.
+    if (
+      msg.includes("already registered") ||
+      msg.includes("user already registered") ||
+      msg.includes("email address is already") ||
+      (error as { status?: number }).status === 422
+    ) {
+      redirect(
+        `/dashboard?invited=1&share_link=${encodeURIComponent(
+          `${appUrl}/invite/accept/${invitation.token}`
+        )}`
+      )
+    }
+
+    // redirectTo not in Supabase's allowed URLs list
+    if (msg.includes("redirect") || msg.includes("invalid")) {
+      console.error(
+        `[invite] Check that "${appUrl}/auth/callback" is listed under ` +
+          "Supabase → Authentication → URL Configuration → Redirect URLs"
+      )
+    }
+
+    // Unexpected error — clean up and surface it
+    await prisma.clientInvitation.delete({ where: { id: invitation.id } })
     redirect("/dashboard/invite?error=send_failed")
   }
 

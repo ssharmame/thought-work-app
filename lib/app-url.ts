@@ -12,6 +12,14 @@ export async function getAppUrl() {
   const configuredUrl = normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL)
   if (configuredUrl) return configuredUrl
 
+  // In local development always use http — x-forwarded-proto is unreliable
+  // and Supabase will reject a redirectTo URL that doesn't match the allowed list.
+  if (process.env.NODE_ENV === "development") {
+    const headerStore = await headers()
+    const host = headerStore.get("host") ?? "localhost:3000"
+    return `http://${host}`
+  }
+
   const headerStore = await headers()
   const forwardedProto = headerStore.get("x-forwarded-proto") ?? "https"
   const forwardedHost = headerStore.get("x-forwarded-host")
