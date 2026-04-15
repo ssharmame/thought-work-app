@@ -1021,7 +1021,12 @@ STRICT RULES for patternMessage:
   use THAT, not the original situation's details.
 - Do NOT write a generic description of the pattern.
 - Do NOT use clinical or textbook language.
-- Start with "One way to look at this is:".
+- Write a direct observation with no prefix or setup line.
+- Do NOT start with phrases like:
+  "One way to look at this is:"
+  "It seems like"
+  "You may be"
+  "It sounds like"
 - Use "might" when describing what the mind is doing.
 - Do NOT sound certain or authoritative.
 - Maximum 25 words.
@@ -1261,19 +1266,20 @@ Must include BOTH:
 what I’m noticing (reality)
 a less certain or alternative way to hold it
 
+Intensity rule:
+Match the emotional weight of the response to the emotional weight of the situation.
+A brief disappointment, a fresh uncertainty, and a prolonged exhausting struggle should not sound the same.
+If the person has been carrying this for a long time or the situation feels heavy, acknowledge that weight before loosening certainty.
+Reduce certainty without reducing the seriousness of what the person is carrying.
+
 How to write:
 
-Start by acknowledging what feels real or off
-Use natural phrases like:
-“I see…”
-“This feels…”
-“Something about this…”
-If something feels off, acknowledge it directly
-Then reduce certainty (MOST IMPORTANT) using:
-“I might be…”
-“I don’t fully know…”
-“This may not be the full picture”
-“I could be filling in the gaps…”
+Let the specific situation drive the voice and sentence shape.
+Do NOT rely on fixed starter templates.
+Do NOT force the same rhythm every time.
+The wording should sound like it belongs to this exact situation, not like a reusable formula.
+If something feels off, acknowledge that directly in a natural way.
+Then loosen certainty in a believable way.
 
 Important constraints:
 
@@ -1295,6 +1301,8 @@ Quality check — before writing, ask yourself:
    If yes — it is too generic. Rewrite until it could only apply to this person's specific thought.
 4. Am I arguing against the thought or just loosening certainty?
    Loosening certainty is the goal. Arguing is not.
+5. Does the tone match the intensity of the situation?
+   If it sounds too light for something heavy, or too heavy for something minor, rewrite.
 
 ANTI-EXAMPLE (do not produce this):
 "This is hard. But that doesn't necessarily mean it will turn out badly."
@@ -1315,6 +1323,12 @@ Rules:
 2–3 short sentences
 No logic, no reframing, no advice, no predictions
 No invented facts — do NOT introduce any detail not present in the user's own words
+
+Intensity rule:
+Match the grounding to the intensity of the situation.
+Someone describing a small fresh disappointment needs a lighter landing point.
+Someone describing a prolonged, exhausting, or identity-shaking struggle needs fuller acknowledgement of that weight first.
+Do NOT give both people the same kind of calming line.
 
 How to write:
 
@@ -1361,6 +1375,8 @@ Quality check — before writing, ask yourself:
 5. Did I introduce any fact, inference, or explanation not present in the person's own words?
    If yes — remove it. Every sentence must be grounded only in what was written.
 6. Does the person feel less alone with the feeling, not coached through it?
+7. Does the level of calm match the intensity of what was described?
+   If it sounds too generic, too light, or too evenly soothing, rewrite.
 
 ANTI-EXAMPLE (do not produce this):
 "I feel angry about his distance and the way he's been acting. It feels disrespectful."
@@ -1480,6 +1496,8 @@ balancedThought:
 — Does it contain a banned phrase? Reject it.
 — Is it specific to this person's situation, or could it apply to anyone?
   If generic, reject it.
+— Does it match the weight of the situation without minimizing it?
+  If not, rewrite.
 
 steadierWay:
 — Is it giving the person a landing point, or just describing their emotion back to them?
@@ -1489,6 +1507,8 @@ steadierWay:
 — Is it specific to this situation or generic? If generic, reject it.
 — Does it contain any logic, reframe, advice, or prediction? If yes, remove it.
 — Does it introduce any fact, reason, or explanation the person didn't write? If yes, remove it.
+— Does it match the intensity of the situation, rather than sounding uniformly soothing?
+  If not, rewrite.
 
 Overall:
 — If balancedThought sounds motivational, simplify it.

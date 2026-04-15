@@ -226,7 +226,7 @@ const toCollaborativePatternLine = (raw: string): string => {
   if (!body) return "";
   if (!/[.!?]$/.test(body)) body = `${body}.`;
 
-  return `One way to look at this is: ${body}`;
+  return body;
 };
 
 const buildAnalysisCards = (
@@ -275,7 +275,7 @@ const buildAnalysisCards = (
     patternValue
       ? {
           key: "pattern",
-          title: "A clearer view",
+          title: "The thinking trap",
           value: patternValue,
           style: INSIGHT_CARD_STYLES.pattern,
           patternKey: analysis.pattern ?? undefined,
@@ -283,14 +283,14 @@ const buildAnalysisCards = (
       : null,
     {
       key: "balanced",
-      title: "A more balanced way to see this",
+      title: "What's more true",
       value: analysis.balancedThought ?? "",
       style: INSIGHT_CARD_STYLES.balanced,
     },
     steadierValue
       ? {
           key: "steadier",
-          title: "A steadier way to hold this",
+          title: "What you need right now",
           value: steadierValue,
           style: INSIGHT_CARD_STYLES.steadier,
         }
@@ -328,7 +328,7 @@ function InsightCard({ title, value, style, patternKey, question }: InsightCardP
             className="text-xs font-semibold tracking-wide mb-1"
             style={{ color: style.dot, opacity: 0.75 }}
           >
-            A clearer view
+            The thinking trap
           </p>
           <p
             className="text-xs font-medium mb-3 leading-snug"
