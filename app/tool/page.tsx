@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { validateSimpleInput } from "@/lib/simpleValidation";
 import { PATTERN_DISPLAY } from "@/lib/ai";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mic, MicOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -730,6 +730,97 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
   const visitorIdRef = useRef("");
   const sessionIdRef = useRef("");
   const threadIdRef = useRef("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const PAUSE_TIMEOUT_MS = 3000; // stop after 2.5s of silence
+
+  // Check for browser speech recognition support on mount
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    setVoiceSupported(!!(w.SpeechRecognition || w.webkitSpeechRecognition));
+  }, []);
+
+  const stopRecording = () => {
+    if (pauseTimerRef.current) {
+      clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
+    }
+    recognitionRef.current?.stop();
+    setIsRecording(false);
+  };
+
+  const resetPauseTimer = () => {
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    pauseTimerRef.current = setTimeout(() => {
+      stopRecording();
+    }, PAUSE_TIMEOUT_MS);
+  };
+
+  const toggleVoiceInput = () => {
+    if (isRecording) {
+      stopRecording();
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const SpeechRecognitionAPI = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) return;
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    let finalTranscript = thought;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      // Reset the silence timer on every speech result
+      resetPauseTimer();
+      let interim = "";
+      let newFinal = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          newFinal += t;
+        } else {
+          interim += t;
+        }
+      }
+      if (newFinal) finalTranscript = (finalTranscript + " " + newFinal).trim();
+      const display = finalTranscript + (interim ? " " + interim : "");
+      setThought(display.trim());
+      if (guidanceMessage) setGuidanceMessage(null);
+      if (validationMessage) setValidationMessage("");
+    };
+
+    recognition.onend = () => {
+      if (pauseTimerRef.current) {
+        clearTimeout(pauseTimerRef.current);
+        pauseTimerRef.current = null;
+      }
+      setIsRecording(false);
+    };
+
+    recognition.onerror = () => {
+      if (pauseTimerRef.current) {
+        clearTimeout(pauseTimerRef.current);
+        pauseTimerRef.current = null;
+      }
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
+    // Start the initial pause timer — stops if user doesn't speak at all
+    resetPauseTimer();
+  };
 
   const computedThreadInsights = useMemo(
     () => computeThreadInsights(thoughtHistory),
@@ -1381,7 +1472,7 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                 background: "linear-gradient(160deg, oklch(0.995 0.004 88) 0%, oklch(0.965 0.025 150) 100%)",
               }}
             >
-              <div>
+              <div className="relative">
                 <textarea
                   data-ocid="thought_page.textarea"
                   value={thought}
@@ -1397,12 +1488,57 @@ export default function ThoughtPage({ onBack }: { onBack?: () => void }) {
                     background: "oklch(1 0 0)",
                     border: guidanceMessage
                       ? "1.5px solid oklch(0.55 0.12 152)"
-                      : "1.5px solid oklch(0.78 0.025 88)",
+                      : isRecording
+                        ? "1.5px solid oklch(0.55 0.18 20)"
+                        : "1.5px solid oklch(0.78 0.025 88)",
                     boxShadow: guidanceMessage
                       ? "0 0 0 3px oklch(0.82 0.08 152 / 0.28)"
-                      : "none",
+                      : isRecording
+                        ? "0 0 0 3px oklch(0.75 0.14 20 / 0.25)"
+                        : "none",
+                    paddingBottom: voiceSupported ? "3rem" : undefined,
                   }}
                 />
+                {voiceSupported && (
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                    {isRecording && (
+                      <span
+                        className="text-xs font-medium px-2 py-0.5 rounded-full animate-pulse"
+                        style={{
+                          background: "oklch(0.96 0.06 20 / 0.15)",
+                          color: "oklch(0.45 0.18 20)",
+                          border: "1px solid oklch(0.75 0.14 20 / 0.35)",
+                        }}
+                      >
+                        Listening…
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={toggleVoiceInput}
+                      title={isRecording ? "Stop recording" : "Speak your thought"}
+                      className="flex items-center justify-center w-8 h-8 rounded-full transition-all"
+                      style={{
+                        background: isRecording
+                          ? "oklch(0.55 0.18 20)"
+                          : "oklch(0.92 0.015 88)",
+                        border: isRecording
+                          ? "1.5px solid oklch(0.45 0.18 20)"
+                          : "1.5px solid oklch(0.78 0.025 88)",
+                        color: isRecording ? "oklch(1 0 0)" : "oklch(0.42 0.025 248)",
+                        boxShadow: isRecording
+                          ? "0 0 0 4px oklch(0.75 0.14 20 / 0.20)"
+                          : "none",
+                      }}
+                    >
+                      {isRecording ? (
+                        <MicOff className="w-4 h-4" />
+                      ) : (
+                        <Mic className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
               {inlineMessage && (
                 <div
